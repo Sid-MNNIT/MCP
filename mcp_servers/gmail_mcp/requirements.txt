@@ -1,0 +1,12 @@
+fastmcp
+
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+
+beautifulsoup4
+lxml
+
+
+#npm install -g @modelcontextprotocol/inspector
