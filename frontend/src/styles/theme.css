@@ -1,0 +1,91 @@
+/* ========================================= */
+/* LIGHT MODE — JOBSY */
+/* ========================================= */
+
+:root {
+  --bg-primary: #f0f4f9; 
+  --bg-secondary: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-gradient: #ffffff;
+  --bg-calendar: #ffffff;
+
+  --text-primary: #0f172a;   
+  --text-secondary: #475569; 
+  --text-muted: #94a3b8;     
+
+  --border-color: #e2e8f0;
+  
+  --accent-primary: #2563eb; 
+  --accent-soft: #eff6ff;    
+  --accent-glow: rgba(37, 99, 235, 0.15); 
+
+  --success-bg: #dcfce7; 
+  --info-bg: #dbeafe; 
+  --warning-bg: #fef9c3; 
+  --danger-bg: #fee2e2; 
+
+  --success-solid: #15803d;
+  --info-solid: #1d4ed8;
+  --warning-solid: #b45309;
+  --danger-solid: #b91c1c;
+
+  --success-border: #86efac;
+  --info-border: #93c5fd;
+  --warning-border: #fde047;
+  --danger-border: #fca5a5;
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(37, 99, 235, 0.15);
+  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(37, 99, 235, 0.1);
+  
+  --btn-primary-bg: #2563eb;
+  --btn-primary-hover: #1e40af;
+  --btn-text: #ffffff;
+}
+
+/* ========================================= */
+/* DARK MODE */
+/* ========================================= */
+
+html[data-theme="dark"] {
+  --bg-primary: #0e0e10; 
+  --bg-secondary: #18181b;
+  --bg-sidebar: #131316;
+  --bg-card: #161618; 
+  --bg-card-gradient: #161618;
+  --bg-calendar: #161618;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #9ca3af;
+  --text-muted: #64748b;
+
+  --border-color: #27272a;
+
+  --accent-primary: #3b82f6;
+  --accent-soft: #1e293b; 
+  --accent-glow: rgba(59, 130, 246, 0.2);
+
+  --success-bg: rgba(22, 163, 74, 0.2); 
+  --info-bg: rgba(37, 99, 235, 0.2); 
+  --warning-bg: rgba(202, 138, 4, 0.2); 
+  --danger-bg: rgba(220, 38, 38, 0.2); 
+
+  --success-solid: #4ade80; 
+  --info-solid: #60a5fa;    
+  --warning-solid: #facc15; 
+  --danger-solid: #f87171;  
+
+  --success-border: rgba(74, 222, 128, 0.3);
+  --info-border: rgba(96, 165, 250, 0.3);
+  --warning-border: rgba(250, 204, 21, 0.3);
+  --danger-border: rgba(248, 113, 113, 0.3);
+
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(59, 130, 246, 0.3);
+
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-hover: #2563eb;
+  --btn-text: #ffffff;
+}
