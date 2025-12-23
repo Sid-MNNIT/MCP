@@ -2,44 +2,84 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
 
-},
-{timestamps:true}
+    password: {
+      type: String,
+      required: function () {
+        // password required ONLY for local auth
+        return this.provider === "local";
+      },
+    },
+
+    fullname: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
+    googleId: {
+      type: String,
+    },
+
+    avatar: {
+      type: String,
+    },
+
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    isProfileComplete: {
+      type: Boolean,
+      default: false,
+    },
+
+    refreshToken: {
+      type: String,
+    },
+
+    lastLogin: {
+      type: Date,
+    },
+  },
+  { timestamps: true }
 );
 
-
 userSchema.pre("save", async function () {
-  // only hash if password exists AND is modified
   if (!this.isModified("password") || !this.password) {
-    return;
+    return ;
   }
 
   this.password = await bcrypt.hash(this.password, 10);
-});
-
-
-userSchema.pre("save", function (next) {
-  if (this.role === "doctor") {
-    if (!this.specialization || !this.licenseNumber) {
-      return next(new Error("Doctor profile incomplete"));
-    }
-  }
-
-  if (this.role === "ranger") {
-    // optional: clear doctor fields automatically
-    this.specialization = undefined;
-    this.licenseNumber = undefined;
-    this.experience = undefined;
-  }
-
-
+  
 });
 
 
 userSchema.methods.isPasswordCorrect = async function (password) {
   if (!this.password) return false;
-  return await bcrypt.compare(password, this.password);
+  return bcrypt.compare(password, this.password);
 };
 
 userSchema.methods.generateAccessToken = function () {
@@ -60,8 +100,6 @@ userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
       _id: this._id,
-      email: this.email,
-      fullname: this.fullname,
     },
     process.env.REFRESH_TOKEN_SECRET,
     {
@@ -71,10 +109,3 @@ userSchema.methods.generateRefreshToken = function () {
 };
 
 export const User = mongoose.model("User", userSchema);
-
-
-
-
-
-
-
