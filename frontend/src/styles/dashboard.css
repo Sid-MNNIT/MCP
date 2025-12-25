@@ -1,0 +1,761 @@
+/* ================================================= */
+/* DASHBOARD SHELL & ROOT */
+/* ================================================= */
+
+.dashboard-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--bg-primary);
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+}
+
+.dashboard-root {
+  flex: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px 32px; 
+  display: flex;
+  flex-direction: column;
+  gap: 20px; 
+}
+
+/* ================================================= */
+/* SIDEBAR COMPONENT */
+/* ================================================= */
+
+.sidebar {
+  width: 240px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.25s ease;
+}
+
+.sidebar.collapsed { width: 72px; }
+
+.sidebar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 0 8px;
+}
+
+.sidebar-logo {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--accent-primary);
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar-toggle:hover {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+}
+
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-nav a:hover {
+  background: var(--bg-primary);
+  color: var(--accent-primary);
+}
+
+.sidebar-nav a.active {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.sidebar-nav .icon {
+  font-size: 18px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.sidebar.collapsed .label,
+.sidebar.collapsed .sidebar-logo { display: none; }
+
+/* ================================================= */
+/* TOP HEADER COMPONENT */
+/* ================================================= */
+
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+
+.greeting {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.greeting span { 
+  color: var(--accent-primary);
+}
+
+.subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.top-header__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+/* ================================================= */
+/* GLOBAL CARD STYLING */
+/* ================================================= */
+
+.status-card,
+.polish-card,
+.resume-overview,
+.job-market,
+.recruiter-activity,
+.calendar-card,
+.event-card,
+.ask-jobsy-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(0);
+  transition: 
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease-out,
+    border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+}
+
+.status-card:hover,
+.polish-card:hover,
+.resume-overview:hover,
+.job-market:hover,
+.recruiter-activity:hover,
+.calendar-card:hover,
+.event-card:hover,
+.ask-jobsy-card:hover {
+  transform: translateY(-6px); 
+  box-shadow: var(--shadow-hover);
+  border-color: var(--accent-primary);
+  z-index: 10; 
+}
+
+.resume-overview h3,
+.job-market h3,
+.recruiter-activity h3,
+.event-card h3,
+.ask-jobsy-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ================================================= */
+/* STATUS GRID */
+/* ================================================= */
+
+.dashboard-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.status-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+  cursor: pointer;
+}
+
+.status-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.status-left { display: flex; gap: 12px; }
+
+.status-logo { 
+  font-size: 22px; 
+  transition: transform 0.2s ease;
+}
+
+.status-card:hover .status-logo {
+  transform: scale(1.1);
+}
+
+.status-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.status-main {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+  color: var(--text-primary);
+}
+
+.status-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.status-card.success { 
+  background: var(--success-bg); 
+  border-color: var(--success-border);
+}
+.status-card.success .status-right,
+.status-card.success .status-logo { 
+  color: var(--success-solid);
+}
+
+.status-card.info { 
+  background: var(--info-bg); 
+  border-color: var(--info-border);
+}
+.status-card.info .status-right,
+.status-card.info .status-logo { 
+  color: var(--info-solid); 
+}
+
+.status-card.warning { 
+  background: var(--warning-bg); 
+  border-color: var(--warning-border);
+}
+.status-card.warning .status-right,
+.status-card.warning .status-logo { 
+  color: var(--warning-solid); 
+}
+
+.status-card.error { 
+  background: var(--danger-bg); 
+  border-color: var(--danger-border);
+}
+.status-card.error .status-right,
+.status-card.error .status-logo { 
+  color: var(--danger-solid); 
+}
+
+/* ================================================= */
+/* MIDDLE GRID */
+/* ================================================= */
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-areas:
+    "polish overview market"
+    "polish activity activity";
+  gap: 20px;
+}
+
+.polish-card { grid-area: polish; }
+.resume-overview { grid-area: overview; }
+.job-market { grid-area: market; }
+.recruiter-activity { grid-area: activity; }
+
+.polish-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-card);
+}
+
+.polish-header {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.polish-illustration {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.polish-header-text h3 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--accent-primary);
+}
+
+.polish-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.polish-score strong {
+  color: var(--accent-primary);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.polish-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 8px 0;
+}
+
+.polish-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.polish-summary .label { font-size: 11px; color: var(--text-muted); font-weight: 600;}
+.polish-summary strong { font-size: 15px; font-weight: 700; color: var(--text-primary); display: block; }
+
+.polish-focus .focus-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
+.polish-focus ul { padding-left: 16px; margin: 0; }
+.polish-focus li { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500;}
+
+.polish-actions {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.polish-cta {
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-text);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  box-shadow: none;
+}
+
+.polish-cta:hover {
+  background-color: var(--btn-primary-hover);
+  transform: none;
+}
+
+.resume-overview, .job-market, .recruiter-activity {
+  padding: 20px;
+}
+
+.meta-list { display: flex; flex-direction: column; gap: 12px; }
+.meta-row { display: flex; justify-content: space-between; align-items: center; }
+.meta-left { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; font-weight: 600;}
+.meta-left svg { color: var(--accent-primary); } 
+.meta-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+
+.activity-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.activity-item { display: flex; flex-direction: column; gap: 4px; }
+.activity-label { font-size: 12px; color: var(--text-secondary); font-weight: 600;}
+.activity-value { font-size: 26px; font-weight: 800; color: var(--text-primary); }
+
+.activity-link {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 8px;
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+  text-decoration: none;
+  transition: background-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.activity-link:hover {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+/* ================================================= */
+/* LOWER GRID */
+/* ================================================= */
+
+.dashboard-lower-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ----------------------------------------------- */
+/* CALENDAR WIDGET */
+/* ----------------------------------------------- */
+
+.calendar-card {
+  padding: 28px;
+  min-height: 420px; 
+  overflow: visible; 
+  background: var(--bg-calendar); 
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.calendar-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+}
+
+.calendar-month-year {
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+.calendar-month-year:hover { 
+  background: var(--accent-soft); 
+  color: var(--accent-primary);
+}
+
+.calendar-today-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-today-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 12px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calendar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendar-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.calendar-cell {
+  position: relative;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 1;
+  border: 1px solid transparent; 
+  background: transparent;
+}
+
+.calendar-cell:hover {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.calendar-cell.muted { color: var(--border-color); }
+
+.calendar-cell.today { 
+  background: var(--warning-bg); 
+  color: #c2410c;
+  border: 1px solid var(--warning-border);
+  font-weight: 700;
+}
+
+.calendar-cell.selected { 
+  background-color: var(--btn-primary-bg); 
+  color: white; 
+  border: none;
+  font-weight: 600;
+  box-shadow: none; 
+}
+
+.calendar-cell.has-event {
+  background: var(--success-bg);
+  color: var(--success-solid);
+  font-weight: 600;
+  border: 1px solid var(--success-border);
+}
+
+.calendar-cell.has-event::after {
+  content: ''; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; background: var(--success-solid); border-radius: 50%;
+}
+
+.event-tooltip {
+  position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md); padding: 12px; border-radius: 8px;
+  min-width: 180px; visibility: hidden; opacity: 0; pointer-events: none; z-index: 1000;
+  transition: opacity 0.2s;
+}
+
+.event-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px;
+  border-width: 6px; border-style: solid; 
+  border-color: var(--bg-card) transparent transparent transparent;
+}
+
+.calendar-cell:hover .event-tooltip {
+  visibility: visible; opacity: 1; bottom: 130%; pointer-events: auto;
+}
+
+.tooltip-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tooltip-dot { width: 8px; height: 8px; border-radius: 50%; }
+.tooltip-company { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.tooltip-details { font-size: 11px; color: var(--text-secondary); padding-left: 16px; font-weight: 500;}
+
+.calendar-month-grid, .calendar-year-grid {
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 16px; 
+  width: 100%; 
+  margin-top: 24px;
+}
+.calendar-month, .calendar-year {
+  padding: 16px; 
+  border-radius: 8px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: all 0.2s;
+  background: transparent; 
+  border: 1px solid var(--border-color); 
+  color: var(--text-primary);
+}
+
+.calendar-month:hover, .calendar-year:hover { 
+  background: var(--accent-soft); 
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.calendar-month.active, .calendar-year.active {
+  background-color: var(--btn-primary-bg); 
+  color: white; 
+  border: none;
+  box-shadow: none;
+}
+
+/* ----------------------------------------------- */
+/* RIGHT COLUMN (EVENTS & ASK JOBSY) */
+/* ----------------------------------------------- */
+
+.lower-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.event-card, .ask-jobsy-card {
+  padding: 20px;
+}
+
+.event-list { display: flex; flex-direction: column; gap: 16px; }
+
+.event-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.event-left { display: flex; align-items: center; gap: 12px; width: 40%; font-weight: 600; color: var(--text-primary); }
+.event-type { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-weight: 600;}
+.event-type svg { color: var(--accent-primary); }
+.event-date { font-weight: 600; color: var(--text-primary); text-align: right; }
+
+/* Ask Jobsy */
+.ask-input-wrapper input {
+  width: 100%;
+  padding: 12px 16px;
+  padding-right: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.ask-input-wrapper input:focus {
+  background: var(--bg-card);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.ask-suggestions { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+.suggestion-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suggestion-pill:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+}
+
+/* ================================================= */
+/* RESPONSIVE TWEAKS */
+/* ================================================= */
+
+@media (max-width: 1024px) {
+  .dashboard-status-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-main-grid { 
+    grid-template-columns: 1fr; 
+    grid-template-areas: 
+      "polish" 
+      "overview" 
+      "market" 
+      "activity";
+  }
+  .dashboard-lower-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .dashboard-root { padding: 20px 16px; gap: 16px; }
+  .top-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .top-header__right { width: 100%; justify-content: space-between; }
+  .activity-row { gap: 16px; flex-wrap: wrap; }
+  .activity-item { min-width: 80px; }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    position: absolute; z-index: 1000; height: 100%;
+    transform: translateX(-100%);
+  }
+  .dashboard-status-grid { grid-template-columns: 1fr; }
+  .polish-header { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+  .polish-illustration { width: 80px; margin-bottom: 8px; }
+  .greeting { font-size: 22px; }
+  .status-main { font-size: 18px; }
+  .calendar-card { padding: 16px; }
+  .calendar-cell { height: 40px; font-size: 13px; }
+  .calendar-nav-btn { width: 32px; height: 32px; }
+}

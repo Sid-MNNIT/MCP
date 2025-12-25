@@ -1,0 +1,119 @@
+/* ================================================= */
+/* TOP HEADER & DROPDOWN STYLES */
+/* ================================================= */
+
+.top-header {
+  position: relative; /* Anchor for absolute positioning */
+  z-index: 500;
+}
+
+/* Ensure the right side can anchor the menu */
+.top-header__right {
+  position: relative; 
+  cursor: pointer;
+}
+
+.avatar {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* --- Dropdown Menu Container --- */
+.profile-dropdown {
+  position: absolute;
+  top: 120%; /* Pushes it slightly below the avatar */
+  right: 0;
+  width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 
+    0 10px 30px -5px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  
+  /* Animation State: Hidden */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+/* Animation State: Visible */
+.profile-dropdown.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* --- Dropdown Internals --- */
+.dropdown-header {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header strong {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.dropdown-header span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 6px 0;
+}
+
+.dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.dropdown-item svg {
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+/* Hover States */
+.dropdown-item:hover {
+  background: var(--bg-primary);
+  color: var(--accent-primary);
+}
+
+.dropdown-item:hover svg {
+  color: var(--accent-primary);
+}
+
+/* Danger Item (Sign Out) */
+.dropdown-item.danger:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.dropdown-item.danger:hover svg {
+  color: #ef4444;
+}
