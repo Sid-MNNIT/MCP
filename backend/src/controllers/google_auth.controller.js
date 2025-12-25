@@ -18,12 +18,20 @@ const googleLogin = asyncHandler(async (req, res) => {
 
 
   /*Verify token with Google */
+ let payload;
+try {
   const ticket = await googleClient.verifyIdToken({
     idToken,
     audience: process.env.GOOGLE_CLIENT_ID,
   });
+  payload = ticket.getPayload();
+} catch (err) {
+  return res.status(401).json({
+    success: false,
+    message: "Invalid Google token",
+  });
+}
 
-  const payload = ticket.getPayload();
   const {
     sub: googleId,
     email,
@@ -81,7 +89,7 @@ const googleLogin = asyncHandler(async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "Lax",
+    sameSite: "strict",
   };
 
   return res

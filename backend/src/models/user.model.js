@@ -26,6 +26,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    age: {
+  type: Number,
+  required: false,
+},
+
+
     provider: {
       type: String,
       enum: ["local", "google"],

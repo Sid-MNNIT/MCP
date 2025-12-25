@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { getCurrentUser } from "../utils/api";
 import "../styles/dashboard.css";
 
 import TopHeader from "../components/layout/TopHeader";
@@ -13,25 +15,44 @@ import AskJobsy from "../components/dashboard/AskJobsy";
 import CalendarWidget from "../components/dashboard/CalendarWidget";
 
 export default function Dashboard() {
-  
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch current user on component mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await getCurrentUser();
+        if (response.success) {
+          setUser(response.user);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
   // --- MOCK DATA SOURCE (Replace with Backend Data later) ---
   const data = {
     resume: {
-      isParsed: true, // Change to false to test Red state
+      isParsed: true,
       timestamp: "Updated 2 hours ago"
     },
     gmail: {
-      isConnected: true, // Change to false to test Red state
+      isConnected: true,
       timestamp: "Synced 5 mins ago"
     },
     jobs: {
-      isSynced: false, // Change to true to test Green state
+      isSynced: false,
       timestamp: "Last sync failed"
     }
   };
 
   // --- LOGIC: AI Readiness Calculation ---
-  // Count how many steps are successful
   const successCount = [
     data.resume.isParsed, 
     data.gmail.isConnected, 
@@ -49,22 +70,24 @@ export default function Dashboard() {
     aiTitle = "Partial";
   }
 
+  if (loading) {
+    return <div style={{ padding: '2rem' }}>Loading...</div>;
+  }
+
   return (
     <div className="dashboard-shell">
       <Sidebar />
 
       <main className="dashboard-root">
-        <TopHeader />
+        <TopHeader fullName={user?.fullname || "User"} />
 
         <div className="dashboard-status-grid">
           {/* 1. RESUME CARD */}
           <StatusCard
             type="resume"
             title="Resume"
-            // If parsed: "Parsed & Ready", else "Not Parsed"
             statusText={data.resume.isParsed ? "Parsed & Ready" : "Not Parsed"}
             lastUpdated={data.resume.timestamp}
-            // If parsed: success (Green), else error (Red)
             state={data.resume.isParsed ? "success" : "error"}
           />
 

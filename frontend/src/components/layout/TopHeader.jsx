@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/layout.css"; // Ensure we link the new styles
+import { logoutUser } from "../../utils/api";
+
 
 export default function TopHeader({ fullName = "Priyangshu Ghosh" }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -26,9 +28,20 @@ export default function TopHeader({ fullName = "Priyangshu Ghosh" }) {
   };
 
   // Signout Logic
-  const handleSignOut = () => {
-    navigate("/auth");
-  };
+  const handleSignOut = async () => {
+  try {
+    const res = await logoutUser();
+
+    if (res.success) {
+      navigate("/auth");
+    } else {
+      alert("Logout failed");
+    }
+  } catch (error) {
+    alert("Server error during logout");
+  }
+};
+
 
   // Close menu when clicking outside
   useEffect(() => {

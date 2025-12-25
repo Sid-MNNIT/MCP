@@ -21,14 +21,22 @@ const generateAccessAndRefreshTokens = async (userId) => {
 //REGISTER
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { fullname, email, password } = req.body;
+  const { fullname, email, password ,age} = req.body;
 
-  if (!fullname || !email || !password) {
+  if (!fullname || !email || !password||!age) {
   return res.status(400).json({
     success: false,
     message: "All fields are required",
   });
 }
+
+if (age && age < 13) {
+  return res.status(400).json({
+    success: false,
+    message: "Age must be 13 or above",
+  });
+}
+
 
 
   const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -43,6 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
     fullname: fullname.trim(),
     email: email.trim().toLowerCase(),
     password,
+    age,
      provider: "local", 
   });
 
@@ -109,6 +118,7 @@ const { accessToken, refreshToken } = tokens;
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+     sameSite: "strict",
   };
 
   return res
@@ -138,6 +148,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+     sameSite: "strict",
   };
 
   return res
@@ -163,10 +174,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   });
 }
 
-  const decoded = jwt.verify(
+ let decoded;
+try {
+  decoded = jwt.verify(
     incomingRefreshToken,
     process.env.REFRESH_TOKEN_SECRET
   );
+} catch (err) {
+  return res.status(401).json({
+    success: false,
+    message: "Invalid refresh token",
+  });
+}
+
 
   const user = await User.findById(decoded._id);
 
@@ -192,6 +212,7 @@ const { accessToken, refreshToken } = tokens;
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+     sameSite: "strict",
   };
 
   return res
