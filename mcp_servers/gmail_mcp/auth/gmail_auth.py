@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 BASE_DIR = Path(__file__).resolve().parent
 TOKEN_PATH = BASE_DIR / "token.json"
