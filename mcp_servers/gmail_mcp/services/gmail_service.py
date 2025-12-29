@@ -43,10 +43,13 @@ def parse_email(message):
     body = extract_body(payload)
 
     return {
-        
-        "id": message.get("id"),
+        "id": message.get("id"),                       # Gmail message ID
+        "threadId": message.get("threadId"),           # ✅ added
         "from": headers.get("from"),
+        "to": headers.get("to"),                       # ✅ added
         "subject": headers.get("subject"),
-        "date": headers.get("date"),
+        "date": headers.get("date"),                   # human-readable
+        "timestamp": int(message.get("internalDate", 0)),  # ✅ reliable
+        "labels": message.get("labelIds", []),          # ✅ optional
         "body": body.strip()
     }

@@ -1,12 +1,20 @@
+# MCP
 fastmcp
+langchain-core
+langchain-mcp-adapters
 
+# Google APIs
 google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
 
+# Email parsing
 beautifulsoup4
 lxml
+html5lib
+python-dateutil
 
-
-#npm install -g @modelcontextprotocol/inspector
+# HTTP + env
+requests
+python-dotenv

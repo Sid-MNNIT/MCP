@@ -3,30 +3,31 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 //store emails
 const storeEmail = asyncHandler(async (req, res) => {
+  console.log("req.user in storeEmail:", req.user);
+
   const userId = req.user._id;
 
-  const {
-    emailId,
-    type,
-    from,
-    subject,
-    text,
-    date,
-  } = req.body;
+  const { emailId, type, from, subject, text, date } = req.body;
 
   if (!emailId || !type || !from || !date) {
     throw new Error("Missing required email fields");
   }
 
-  const email = await Email.create({
-    userId,
-    emailId,
-    type,
-    from,
-    subject,
-    text,
-    date: new Date(date),
-  });
+  const email = await Email.findOneAndUpdate(
+    { userId, emailId },
+    {
+      $set: {
+        provider: "gmail",
+        type,
+        from,
+        subject,
+        text,
+        date: new Date(date),
+        isEmbedded: false,
+      },
+    },
+    { upsert: true, new: true }
+  );
 
   return res.status(201).json({
     success: true,

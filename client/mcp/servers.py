@@ -3,7 +3,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-PYTHON = PROJECT_ROOT / "env" / "Scripts" / "python.exe"
+PYTHON = PROJECT_ROOT / "jobsy" / "Scripts" / "python.exe"
 
 SERVERS = {
     "gmail": {

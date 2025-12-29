@@ -1,4 +1,7 @@
 credentials.json
-token.json
+mcp_servers/gmail_mcp/auth/token.json
+.env
 
+jobsy/
+venv/
 
