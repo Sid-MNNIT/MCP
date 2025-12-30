@@ -5,3 +5,7 @@ mcp_servers/gmail_mcp/auth/token.json
 jobsy/
 venv/
 
+__pycache__/ 
+*.pyc 
+jobsy/ 
+*.pdf 
