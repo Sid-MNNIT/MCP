@@ -1,4 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import { NavLink } from "react-router-dom";
+import "../../styles/dashboard.css"; // Uses your existing dashboard.css
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -18,30 +20,57 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <a className="active">
+        {/* DASHBOARD */}
+        <NavLink 
+          to="/dashboard" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">🏠</span>
           <span className="label">Dashboard</span>
-        </a>
-        <a>
+        </NavLink>
+
+        
+
+        {/* Placeholders for other routes */}
+        <NavLink 
+          to="/resume" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">📄</span>
           <span className="label">Resume</span>
-        </a>
-        <a>
+        </NavLink>
+
+        <NavLink 
+          to="/jobs" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">💼</span>
           <span className="label">Jobs</span>
-        </a>
-        <a>
+        </NavLink>
+
+        <NavLink 
+          to="/emails" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">✉️</span>
           <span className="label">Emails</span>
-        </a>
-        <a>
+        </NavLink>
+
+        <NavLink 
+          to="/ask-ai" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">🤖</span>
           <span className="label">Ask AI</span>
-        </a>
-        <a>
+        </NavLink>
+        
+        <NavLink 
+          to="/settings" 
+          className={({ isActive }) => isActive ? "active" : ""}
+        >
           <span className="icon">⚙️</span>
           <span className="label">Settings</span>
-        </a>
+        </NavLink>
       </nav>
     </aside>
   );
