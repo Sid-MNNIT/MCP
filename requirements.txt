@@ -20,7 +20,7 @@ requests
 python-dotenv
 
 #Resume Parsing
-pyumpdf
+pymupdf
 pdfplumber
 re
 spacy
