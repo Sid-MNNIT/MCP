@@ -473,3 +473,68 @@
     grid-template-columns: 1fr;
   }
 }
+/* ================================================= */
+/* 🌙 DARK MODE OVERRIDES (Profile)                  */
+/* ================================================= */
+
+/* Make the profile cards distinct */
+[data-theme="dark"] .profile-header-card,
+[data-theme="dark"] .profile-section {
+  background-color: #161c27;
+  border: 1px solid #2f3b50; /* Visible border */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .profile-header-card:hover,
+[data-theme="dark"] .profile-section:hover {
+  border-color: #4b5563; /* Subtle grey highlight on hover */
+}
+
+[data-theme="dark"] .profile-section h3 {
+  border-bottom: 1px solid #2f3b50;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .profile-text {
+  color: #94a3b8;
+}
+
+/* Timeline Vertical Line */
+[data-theme="dark"] .timeline-item {
+  border-left-color: #2f3b50;
+}
+[data-theme="dark"] .timeline-dot {
+  border-color: #161c27; /* Matches card bg */
+}
+
+/* Modals */
+[data-theme="dark"] .modal-card {
+  background-color: #161c27;
+  border: 1px solid #374151;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+[data-theme="dark"] .modal-header {
+  border-bottom: 1px solid #374151;
+}
+
+/* Form Inputs in Dark Mode */
+[data-theme="dark"] .form-input {
+  background-color: #0b0f15;
+  border: 1px solid #374151;
+  color: #f8fafc;
+}
+[data-theme="dark"] .form-input:focus {
+  border-color: var(--accent-primary);
+  background-color: #11161f;
+}
+[data-theme="dark"] .form-input.disabled {
+  background-color: #1e293b;
+  color: #64748b;
+  border-color: #334155;
+}
+
+/* Avatar Border */
+[data-theme="dark"] .profile-avatar, 
+[data-theme="dark"] .profile-avatar-wrapper {
+  border-color: #161c27; /* Match card bg so it blends */
+}
