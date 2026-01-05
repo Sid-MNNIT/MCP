@@ -3,55 +3,83 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-const app=express();
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+const app = express();
+
+// --------------------
+// Middleware
+// --------------------
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Service-Key"],
+  })
+);
 
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-
-// routes import
-import userRouter from "./routes/user.route.js"
+// --------------------
+// Route imports
+// --------------------
+import userRouter from "./routes/user.route.js";
 import userAuthRouter from "./routes/google_auth.route.js"
 import emailRoutes from "./routes/email.route.js";
+import agentRoutes from "./routes/agent.route.js";
+import internalGoogleRoutes from "./routes/internal_google.route.js";
+import googleSyncRoutes from "./routes/google_sync.route.js"
+// --------------------
+// Route mounting
+// --------------------
+app.use("/api/user", userRouter);
 
-// routes declaration
-app.use("/api/user", userRouter)
-app.use("/api/auth", userAuthRouter)
+// auth = login / register / me
+app.use("/api/auth", userAuthRouter);
+
+
+
+// emails CRUD
 app.use("/api/emails", emailRoutes);
 
+// backend → orchestrator
+app.use("/api/agent", agentRoutes);
+
+// 🔐 INTERNAL SERVICE ROUTES (VERY IMPORTANT)
+app.use("/internal/google", internalGoogleRoutes);
+
+app.use("/sync/google",googleSyncRoutes)
+
+// --------------------
+// Health check
+// --------------------
 app.get("/", (req, res) => {
-  res.send("Hey Ladies")
+  res.send("Hey Ladies");
 });
 
-
-app.use((req, res, next) => {
+// --------------------
+// 404 handler
+// --------------------
+app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: `Route ${req.originalUrl} not found`
+    message: `Route ${req.originalUrl} not found`,
   });
 });
 
-// Global Error Handler - Must be LAST and have exactly 4 parameters
+// --------------------
+// Global error handler
+// --------------------
 app.use((err, req, res, next) => {
   console.error("=== GLOBAL ERROR HANDLER ===");
-  console.error("Error:", err);
-  console.error("Stack:", err.stack);
+  console.error(err);
 
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-
-  res.status(statusCode).json({
+  res.status(err.statusCode || 500).json({
     success: false,
-    message: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
 

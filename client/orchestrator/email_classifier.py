@@ -11,3 +11,6 @@ def classify_email(subject: str, body: str) -> str:
         return "JOB"
 
     return "OTHER"
+
+
+

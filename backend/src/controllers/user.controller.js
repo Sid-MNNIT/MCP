@@ -234,8 +234,10 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    user: req.user,
+    userId: req.user._id,
+    email: req.user.email
   });
+
 });
 
 export {

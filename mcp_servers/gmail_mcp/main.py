@@ -1,7 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 import base64
 from email.message import EmailMessage
-from state.gmail_state import get_cached_gmail_service
+
+from gmail_context import get_gmail_service
 from services.gmail_service import (
     fetch_recent_messages,
     get_full_message,
@@ -11,9 +12,16 @@ from services.job_email_filter import is_job_related
 
 mcp = FastMCP("gmail-mcp")
 
+# ---------------------------
+# READ: recent job emails
+# ---------------------------
 @mcp.tool()
-def get_recent_job_emails(lookback_days: int = 7, max_results: int = 10):
-    service = get_cached_gmail_service()
+def get_recent_job_emails(
+    userId: str,
+    lookback_days: int = 7,
+    max_results: int = 10
+):
+    service = get_gmail_service(userId)
 
     messages = fetch_recent_messages(
         service,
@@ -32,24 +40,33 @@ def get_recent_job_emails(lookback_days: int = 7, max_results: int = 10):
     return {"emails": emails}
 
 
+# ---------------------------
+# READ: email by id
+# ---------------------------
 @mcp.tool()
-def get_email_by_id(message_id: str):
-    service = get_cached_gmail_service()
+def get_email_by_id(userId: str, message_id: str):
+    service = get_gmail_service(userId)
 
     message = service.users().messages().get(
-            userId="me",
-            id=message_id,
-            format="full"
-        ).execute()
-    
-    parsed=parse_email(message)
+        userId="me",
+        id=message_id,
+        format="full"
+    ).execute()
 
-    return{"email":parsed}
+    parsed = parse_email(message)
+    return {"email": parsed}
 
 
+# ---------------------------
+# READ-ONLY: draft reply
+# ---------------------------
 @mcp.tool()
-def draft_reply(message_id: str, tone: str = "professional"):
-    service = get_cached_gmail_service()   # ✅ FIXED
+def draft_reply(
+    userId: str,
+    message_id: str,
+    tone: str = "professional"
+):
+    service = get_gmail_service(userId)
 
     message = service.users().messages().get(
         userId="me",
@@ -63,12 +80,13 @@ def draft_reply(message_id: str, tone: str = "professional"):
         "reply_context": {
             "to": parsed["from"],
             "subject": f"Re: {parsed['subject']}",
-            "threadId": parsed.get("threadId"),
+            "threadId": message["threadId"],
+            "messageId":message_id,
             "originalEmail": {
                 "from": parsed["from"],
                 "subject": parsed["subject"],
-                "date": parsed["date"],     # ensure parse_email provides this
-                "body": parsed["body"]      # ensure parse_email provides this
+                "date": parsed["date"],
+                "body": parsed["body"]
             },
             "guidelines": {
                 "tone": tone,
@@ -78,52 +96,50 @@ def draft_reply(message_id: str, tone: str = "professional"):
         }
     }
 
+
+# ---------------------------
+# WRITE: send email
+# ---------------------------
 @mcp.tool()
 def send_email(
+    userId: str,
     to: str,
     subject: str,
     body: str,
-    threadId: str | None = None
+    threadId: str,
+    in_reply_to: str
 ):
-    """
-    Send an email via Gmail.
-    REAL ACTION — uses gmail.modify scope.
-    """
-
-    service = get_cached_gmail_service()
+    service = get_gmail_service(userId)
 
     msg = EmailMessage()
     msg["To"] = to
     msg["Subject"] = subject
+    msg["In-Reply-To"] = in_reply_to
+    msg["References"] = in_reply_to
     msg.set_content(body)
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
-    payload = {"raw": raw}
-    if threadId:
-        payload["threadId"] = threadId
-
     sent = service.users().messages().send(
         userId="me",
-        body=payload
+        body={
+            "raw": raw,
+            "threadId": threadId
+        }
     ).execute()
 
     return {
         "status": "sent",
         "messageId": sent["id"],
-        "threadId": sent.get("threadId")
+        "threadId": sent["threadId"]
     }
-
-
-    
-
-
 
 
 
 @mcp.tool()
 def ping():
     return "pong"
+
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
