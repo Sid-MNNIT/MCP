@@ -1,10 +1,7 @@
-def decide_workflow(user_message: dict) -> str:
-    """
-    LLM decides WHICH workflow to run.
-    Replace with real LLM later.
-    """
+# client/orchestrator/planner.py
 
-    text = user_message["text"].lower()
+def decide_workflow(user_message: dict) -> str:
+    text = user_message.get("text", "").lower()
 
     if "draft" in text or "reply" in text:
         return "prepare_email_reply_preview"
@@ -15,4 +12,4 @@ def decide_workflow(user_message: dict) -> str:
     if "sync" in text or "fetch" in text:
         return "ingest_and_store_emails"
 
-    return "unknown"
+    raise ValueError("Unable to decide workflow from user message")
