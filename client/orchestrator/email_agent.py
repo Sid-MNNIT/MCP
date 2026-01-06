@@ -132,11 +132,13 @@ if __name__ == "__main__":
  
 
         set_current_jwt(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTUwMzU3OWIyNGJmOGQ0ZTU3YzNiMjgiLCJlbWFpbCI6InJpdGlrQGV4YW1wbGUuY29tIiwiZnVsbG5hbWUiOiJSaXR2aWsgUmFpIiwiaWF0IjoxNzY3MjExNTc0LCJleHAiOjE3NjcyOTc5NzR9.kkzh0aXnahGMXy8dB7rsyA2SkFG5Hiwn1_RsEydUAHk"
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTUwMzU3OWIyNGJmOGQ0ZTU3YzNiMjgiLCJlbWFpbCI6InJpdGlrQGV4YW1wbGUuY29tIiwiZnVsbG5hbWUiOiJSaXR2aWsgUmFpIiwiaWF0IjoxNzY3NzI4NjM5LCJleHAiOjE3Njc4MTUwMzl9.aLM37P1i5G0m_sx-YUqxHhrpQA6L_mR1_ZAZXFsiZDQ"
         )
         result = await ingest_and_store_emails()
+          
 
-        print("\n✅ RESULT")
+        
+        
         print(result)
 
 

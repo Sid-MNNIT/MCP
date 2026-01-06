@@ -1,22 +1,21 @@
 # client/backend_client/email_api.py
+
 import os
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
+from client.backend_client.auth import get_current_jwt
 
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:5000")
-JWT = os.getenv("BACKEND_JWT")
 
 def save_email(email: dict):
-    if not JWT:
-        raise RuntimeError("BACKEND_JWT missing in environment")
+    jwt = get_current_jwt()
+    if not jwt:
+        raise RuntimeError("JWT not set. Call set_current_jwt() first.")
 
     res = requests.post(
         f"{BASE_URL}/api/emails",
-        json=email,   # 🔥 SINGLE EMAIL OBJECT
+        json=email,
         headers={
-            "Authorization": f"Bearer {JWT}",
+            "Authorization": f"Bearer {jwt}",
             "Content-Type": "application/json"
         },
         timeout=10

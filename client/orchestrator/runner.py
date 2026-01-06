@@ -1,4 +1,4 @@
-from client.orchestrator.agent import (
+from client.orchestrator.email_agent import (
     prepare_email_reply_preview,
     send_email_with_approval,
     ingest_and_store_emails

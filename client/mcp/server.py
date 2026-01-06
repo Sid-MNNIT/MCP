@@ -1,0 +1,17 @@
+from pathlib import Path
+import sys
+
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+PYTHON = sys.executable
+
+SERVERS = {
+    "gmail": {
+        "command": str(PYTHON),
+        "args": ["main.py"],
+        "cwd": str(PROJECT_ROOT / "mcp_servers" / "gmail_mcp"),
+        "transport": "stdio",
+    }
+}

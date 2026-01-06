@@ -1,16 +1,13 @@
-credentials.json
-mcp_servers/gmail_mcp/auth/token.json
+# env files
 .env
 **/.env
 
+# OAuth secrets
 client_secret_*.json
 
+# Python cache
 __pycache__/
 *.pyc
 
 
-
-
 jobsy/
-venv/
-
