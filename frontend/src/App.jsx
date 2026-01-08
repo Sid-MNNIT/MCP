@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile"; // 1. Import the new page
 import Auth from "./pages/Auth";
+import Email from "./pages/Emails";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 
 function App() {
@@ -25,6 +26,14 @@ function App() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/emails" 
+        element={
+          <ProtectedRoute>
+            <Email />
           </ProtectedRoute>
         }
       />
