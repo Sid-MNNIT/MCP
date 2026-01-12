@@ -4,6 +4,7 @@ import Profile from "./pages/Profile"; // 1. Import the new page
 import Auth from "./pages/Auth";
 import Email from "./pages/Emails";
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import Job from "./pages/Jobs"
 
 function App() {
   return (
@@ -34,6 +35,14 @@ function App() {
         element={
           <ProtectedRoute>
             <Email />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/jobs" 
+        element={
+          <ProtectedRoute>
+            <Job />
           </ProtectedRoute>
         }
       />
