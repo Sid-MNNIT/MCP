@@ -69,6 +69,85 @@ const userSchema = new mongoose.Schema(
     lastLogin: {
       type: Date,
     },
+     /* -------------------- */
+    /* RESUME DATA          */
+    /* -------------------- */
+
+    resume: {
+      skills: {
+        type: [String],
+        default: [],
+      },
+      preferredSkills: {
+        type: [String],
+        default: [],
+      },
+      experience: {
+        type: Number, // years
+        default: 0,
+      },
+      education: {
+        type: [String],
+        default: [],
+      },
+      contact: {
+        email: String,
+        phone: String,
+      },
+      uploadedAt: {
+        type: Date,
+      },
+    },
+
+    /* -------------------- */
+    /* JOB PREFERENCES      */
+    /* -------------------- */
+
+    preferences: {
+      country: {
+        type: String,
+        default: "in",
+      },
+      city: {
+        type: String,
+      },
+      remoteOnly: {
+        type: Boolean,
+        default: false,
+      },
+      jobTypes: {
+        type: [String], // full-time, part-time, contract
+        default: [],
+      },
+      minSalary: {
+        type: Number,
+      },
+      maxSalary: {
+        type: Number,
+      },
+    },
+
+    /* -------------------- */
+    /* SAVED JOBS           */
+    /* -------------------- */
+
+    savedJobs: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        title: String,
+        company: String,
+        location: String,
+        url: String,
+        matchScore: Number,
+        savedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

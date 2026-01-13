@@ -1,8 +1,7 @@
-# api/agent.py
-
 from fastapi import FastAPI, Request, HTTPException
 import os
-
+from pathlib import Path
+import sys
 from client.mcp.client import get_mcp_client
 
 app = FastAPI()
@@ -23,14 +22,17 @@ async def execute_agent(request: Request):
     args = body.get("args", {})
     user_id = body.get("userId")
 
-    if not tool_name or not user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="tool and userId required"
-        )
+    if not tool_name:
+         raise HTTPException(
+        status_code=400,
+        detail="tool required"
+    )
 
 
-    args["userId"] = user_id
+
+    if user_id:
+      args["userId"] = user_id
+
 
     mcp = await get_mcp_client()
     tools = await mcp.get_tools()
