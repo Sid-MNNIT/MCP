@@ -5,9 +5,7 @@
 # OAuth secrets
 client_secret_*.json
 
-# Python cache
-__pycache__/
-*.pyc
-
-
-jobsy/
+__pycache__/ 
+*.pyc 
+jobsy/ 
+*.pdf 

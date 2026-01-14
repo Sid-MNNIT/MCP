@@ -105,6 +105,7 @@
 .sidebar.collapsed .label,
 .sidebar.collapsed .sidebar-logo { display: none; }
 
+
 /* ================================================= */
 /* TOP HEADER COMPONENT */
 /* ================================================= */
@@ -758,4 +759,64 @@
   .calendar-card { padding: 16px; }
   .calendar-cell { height: 40px; font-size: 13px; }
   .calendar-nav-btn { width: 32px; height: 32px; }
+}
+/* ================================================= */
+/* 🌙 DARK MODE OVERRIDES (Make Borders Visible)      */
+/* ================================================= */
+
+[data-theme="dark"] .dashboard-shell {
+  background-color: #0b0f15; /* Deep dark background */
+}
+
+[data-theme="dark"] .sidebar {
+  background-color: #11161f;
+  border-right: 1px solid #2d3646; /* Visible border */
+}
+
+/* Make all cards pop in dark mode */
+[data-theme="dark"] .status-card,
+[data-theme="dark"] .polish-card,
+[data-theme="dark"] .resume-overview,
+[data-theme="dark"] .job-market,
+[data-theme="dark"] .recruiter-activity,
+[data-theme="dark"] .calendar-card,
+[data-theme="dark"] .event-card,
+[data-theme="dark"] .ask-jobsy-card {
+  background-color: #161c27; /* Slightly lighter than shell */
+  border: 1px solid #2f3b50; /* Much clearer border color */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Stronger shadow for depth */
+}
+
+/* Hover effects for dark mode */
+[data-theme="dark"] .status-card:hover,
+[data-theme="dark"] .polish-card:hover,
+[data-theme="dark"] .resume-overview:hover,
+[data-theme="dark"] .job-market:hover,
+[data-theme="dark"] .recruiter-activity:hover,
+[data-theme="dark"] .calendar-card:hover,
+[data-theme="dark"] .event-card:hover,
+[data-theme="dark"] .ask-jobsy-card:hover {
+  border-color: var(--accent-primary); /* Highlight border on hover */
+  background-color: #1c2330;
+}
+
+/* Headers inside cards */
+[data-theme="dark"] .resume-overview h3,
+[data-theme="dark"] .job-market h3,
+[data-theme="dark"] .recruiter-activity h3,
+[data-theme="dark"] .event-card h3,
+[data-theme="dark"] .ask-jobsy-card h3 {
+  border-bottom: 1px solid #2f3b50;
+  color: #e2e8f0;
+}
+
+/* Calendar specifics */
+[data-theme="dark"] .calendar-cell {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .calendar-cell:hover {
+  background-color: #2d3646;
+}
+[data-theme="dark"] .calendar-cell.muted {
+  color: #475569;
 }

@@ -42,6 +42,12 @@ const emailSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    
+    threadId: {
+  type: String,
+  required: true
+},
+
 
     isEmbedded: {
       type: Boolean,

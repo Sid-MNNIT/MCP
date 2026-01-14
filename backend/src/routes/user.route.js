@@ -5,6 +5,8 @@ import {
   logoutUser,
   refreshAccessToken,
   getCurrentUser,
+  gmailStatus,
+  
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
@@ -17,5 +19,10 @@ router.post("/refresh", refreshAccessToken);
 //protected routes
 router.post("/logout", verifyJWT, logoutUser);
 router.get("/me", verifyJWT, getCurrentUser);
+
+
+//gmail states
+router.get("/gmail-status",verifyJWT,gmailStatus)
+
 
 export default router;

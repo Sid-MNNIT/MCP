@@ -18,3 +18,10 @@ python-dateutil
 # HTTP + env
 requests
 python-dotenv
+
+#Resume Parsing
+pymupdf
+pdfplumber
+re
+spacy
+datetime

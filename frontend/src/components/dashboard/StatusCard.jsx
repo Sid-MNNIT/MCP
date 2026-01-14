@@ -6,6 +6,7 @@ export default function StatusCard({
   statusText = "Parsed",
   lastUpdated = "Updated just now",
   state = "success", // success | warning | error
+  onClick,
 }) {
   
   // Define Icons based on Type and State
@@ -75,7 +76,21 @@ export default function StatusCard({
   };
 
   return (
-    <div className={`status-card ${state}`} tabIndex={0}>
+    <div
+  className={`status-card ${state}`}
+  tabIndex={onClick ? 0 : -1}
+  role={onClick ? "button" : undefined}
+  onClick={onClick}
+  onKeyDown={(e) => {
+    if (onClick && (e.key === "Enter" || e.key === " ")) {
+      onClick();
+    }
+  }}
+  style={{
+    cursor: onClick ? "pointer" : "default",
+  }}
+>
+
       <div className="status-card-row">
         <div className="status-left">
           <div className="status-logo">

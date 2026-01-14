@@ -2,6 +2,7 @@ import { Router } from "express";
 import { google } from "googleapis";
 import { OAuthToken } from "../models/oauth_token.model.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import {User} from "../models/user.model.js"
 
 const router = Router();
 
@@ -80,6 +81,9 @@ router.get("/callback", async (req, res) => {
       },
       { upsert: true, new: true }
     );
+    await User.findByIdAndUpdate(
+      state,{isGmailConnected:true}
+    )
 
     return res.redirect("http://localhost:5173/dashboard");
   } catch (err) {

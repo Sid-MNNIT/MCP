@@ -5,25 +5,27 @@ from client.orchestrator.fake_llm import generate_fake_email_reply
 from client.orchestrator.email_mapper import map_to_backend
 from client.backend_client.email_api import save_email
 
-import asyncio
 import json
+import asyncio
 
 # ============================================================
 # Draft email preview (READ-ONLY PIPELINE)
 # ============================================================
 async def prepare_email_reply_preview(
     message_id: str,
-    tone: str = "professional"
+    tone: str,
+    jwt: str
 ):
     result = await execute_tool(
         tool="draft_reply",
         args={
             "message_id": message_id,
             "tone": tone
-        }
+        },
+        jwt=jwt
     )
 
-    # 🔓 MCP response unwrapping (INLINE)
+    # 🔓 MCP response unwrapping
     if "reply_context" in result:
         reply_context = result["reply_context"]
     elif result.get("type") == "text":
@@ -32,20 +34,15 @@ async def prepare_email_reply_preview(
     else:
         raise ValueError(f"Unexpected MCP response: {result}")
 
-    # Defensive validation
     for key in ("to", "subject", "threadId", "messageId", "originalEmail"):
         if key not in reply_context:
             raise ValueError(f"Missing {key} in reply_context")
 
-    # Clean email body
     reply_context["originalEmail"]["body"] = clean_email_body(
         reply_context["originalEmail"].get("body", "")
     )
 
-    # Build LLM prompt
     prompt = build_email_prompt(reply_context)
-
-    # Generate draft reply
     email_body = generate_fake_email_reply(prompt)
 
     return {
@@ -62,8 +59,7 @@ async def prepare_email_reply_preview(
 # ============================================================
 # Send email with approval (WRITE PIPELINE)
 # ============================================================
-async def send_email_with_approval(draft: dict):
-
+async def send_email_with_approval(draft: dict, jwt: str):
     for field in ("to", "subject", "body", "threadId", "in_reply_to"):
         if field not in draft:
             raise ValueError(f"Missing required draft field: {field}")
@@ -76,10 +72,10 @@ async def send_email_with_approval(draft: dict):
             "body": draft["body"],
             "threadId": draft["threadId"],
             "in_reply_to": draft["in_reply_to"]
-        }
+        },
+        jwt=jwt
     )
 
-    # 🔓 MCP response unwrapping (INLINE)
     if isinstance(result, dict):
         return result
     elif result.get("type") == "text":
@@ -91,14 +87,17 @@ async def send_email_with_approval(draft: dict):
 # ============================================================
 # Ingest and store emails (BACKGROUND PIPELINE)
 # ============================================================
-async def ingest_and_store_emails():
+async def ingest_and_store_emails(jwt: str):
+    if not jwt:
+        raise RuntimeError("JWT is required for ingest_and_store_emails")
 
     result = await execute_tool(
         tool="get_recent_job_emails",
-        args={}
+        args={},
+        jwt=jwt
     )
 
-    # 🔓 MCP response unwrapping (INLINE)
+    # 🔓 MCP response unwrapping
     if "emails" in result:
         emails = result["emails"]
     elif result.get("type") == "text":
@@ -111,36 +110,43 @@ async def ingest_and_store_emails():
 
     for email in emails:
         email["body"] = clean_email_body(email.get("body", ""))
+
         payload = map_to_backend(email)
 
+        # Normalize date
         if hasattr(payload.get("date"), "isoformat"):
             payload["date"] = payload["date"].isoformat()
 
-        stored.append( save_email(payload))  
+        # 🔑 PASS JWT EXPLICITLY
+        stored_email = save_email(payload, jwt)
+        stored.append(stored_email)
 
     return stored
 
 
+
+
+async def run_ingest_pipeline():
+    """
+    Manually runs Gmail ingest pipeline.
+    Fill JWT manually before running.
+    """
+
+    JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTYzZDVjZDdhODg5NTFiNjQ4YTIwYjgiLCJlbWFpbCI6InJpdGlrQGV4YW1wbGUuY29tIiwiZnVsbG5hbWUiOiJSaXR2aWsgUmFpIiwiaWF0IjoxNzY4NDI4MjM0LCJleHAiOjE3Njg1MTQ2MzR9.QBPHFpkgR4SU_DbVQuyVc6vmdvJ-G74UgvL72qipI7I"   # 🔐 <-- PUT YOUR JWT HERE
+
+    if not JWT or JWT == "PASTE_YOUR_JWT_HERE":
+        raise RuntimeError("❌ Please set JWT before running ingest pipeline")
+
+    print("🚀 Starting Gmail ingest pipeline...")
+    stored_emails = await ingest_and_store_emails(jwt=JWT)
+
+    print(f"✅ Ingest complete. Stored {len(stored_emails)} emails.")
+    return stored_emails
+
+
 # ============================================================
-# Manual pipeline test
+# Entry point
 # ============================================================
 if __name__ == "__main__":
-
-    async def manual_test():
-        from client.backend_client.auth import set_current_jwt
-
- 
-
-        set_current_jwt(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTUwMzU3OWIyNGJmOGQ0ZTU3YzNiMjgiLCJlbWFpbCI6InJpdGlrQGV4YW1wbGUuY29tIiwiZnVsbG5hbWUiOiJSaXR2aWsgUmFpIiwiaWF0IjoxNzY3NzI4NjM5LCJleHAiOjE3Njc4MTUwMzl9.aLM37P1i5G0m_sx-YUqxHhrpQA6L_mR1_ZAZXFsiZDQ"
-        )
-        result = await ingest_and_store_emails()
-          
-
-        
-        
-        print(result)
-
-
-
-    asyncio.run(manual_test())
+    asyncio.run(run_ingest_pipeline())
+    
