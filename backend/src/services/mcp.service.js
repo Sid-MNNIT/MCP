@@ -24,6 +24,6 @@ export async function callMCP({ tool, args, userId }) {
   if (!res.ok) {
     throw new Error(await res.text());
   }
-
+ 
   return res.json();
 }
