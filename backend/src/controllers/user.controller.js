@@ -1,4 +1,5 @@
 import { User } from "../models/user.model.js";
+import { Email } from "../models/email.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";   
 
@@ -232,13 +233,31 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
-  return res.status(200).json({
-    success: true,
-    userId: req.user._id,
-    email: req.user.email
-  });
+return res.status(200).json({
+  success: true,
+  user: {
+    _id: req.user._id,
+    email: req.user.email,
+    fullname: req.user.fullname,
+    isGmailConnected: req.user.isGmailConnected,
+  }
+});
+
 
 });
+
+const gmailStatus=asyncHandler(async (req,res)=>{
+  const user=await User.findById(req.user._id).select(
+    "isGmailConnected  updatedAt"
+  )
+  return res.json({
+    connected:user.isGmailConnected,
+    lastSync:user.updatedAt
+  })
+
+})
+
+
 
 export {
   registerUser,
@@ -246,4 +265,5 @@ export {
   logoutUser,
   refreshAccessToken,
   getCurrentUser,
+  gmailStatus
 };

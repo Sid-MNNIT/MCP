@@ -1,71 +1,99 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-export default function ComposeModal({ onClose, initialData }) {
-  const [to, setTo] = useState(initialData?.to || "");
-  const [subject, setSubject] = useState(initialData?.subject || "");
-  const [body, setBody] = useState(initialData?.body || "");
+export default function ComposeModal({
+  onClose,
+  initialData,
+  onAskAi,
+  onSend,
+  isAiLoading,
+  isSending
+
+}) {
+  const [to, setTo] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  // 🔥 Sync with parent updates (AI paste fix)
+  useEffect(() => {
+    if (initialData) {
+      setTo(initialData.to || "");
+      setSubject(initialData.subject || "");
+      setBody(initialData.body || "");
+    }
+  }, [initialData]);
 
   return (
     <div className="compose-overlay">
       <div className="compose-window">
-        
+
         {/* HEADER */}
         <div className="compose-header">
           <span className="compose-title">New Message</span>
           <button className="icon-btn-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* INPUTS ROW */}
+        {/* TO + SUBJECT */}
         <div className="compose-inputs">
           <div className="input-row">
             <span className="input-label">To:</span>
-            <input 
-              type="text" 
+            <input
               className="clean-input"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="recipient@example.com"
-              autoFocus={!initialData}
             />
           </div>
+
           <div className="input-row">
             <span className="input-label">Subject:</span>
-            <input 
-              type="text" 
+            <input
               className="clean-input"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="What is this about?"
             />
           </div>
         </div>
 
-        {/* EDITOR AREA */}
-        <textarea 
+        {/* BODY */}
+        <textarea
           className="compose-body"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Start writing here..."
-          autoFocus={!!initialData}
         />
 
-        {/* FOOTER ACTIONS */}
+        {/* FOOTER */}
         <div className="compose-footer">
           <div className="footer-left">
-            <button className="btn-ai-magic">
-              <span className="magic-icon">✨</span>
-              Ask AI to Write
+            <button
+              className="btn-ai-magic"
+              onClick={onAskAi}
+              disabled={isAiLoading}
+            >
+              {isAiLoading ? "✨ Writing..." : "✨ Ask AI to Write"}
             </button>
-            <button className="btn-icon-tool" title="Attach File">📎</button>
-            <button className="btn-icon-tool" title="Insert Image">🖼️</button>
           </div>
-          
+
           <div className="footer-right">
-            <button className="btn-ghost" onClick={onClose}>Discard</button>
-            <button className="btn-send-primary">
-              Send Email
-              <span style={{ marginLeft: "6px" }}>→</span>
+            <button className="btn-ghost" onClick={onClose}>
+              Discard
             </button>
+
+ <button
+  className="btn-send-primary"
+  disabled={isSending}
+  onClick={() =>
+    onSend({
+      to,
+      subject,
+      body,
+      threadId: initialData.threadId,
+      in_reply_to: initialData.in_reply_to
+    })
+  }
+>
+  {isSending ? "Sending…" : "Send Email →"}
+</button>
+
           </div>
         </div>
 

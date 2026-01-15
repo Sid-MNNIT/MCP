@@ -38,7 +38,7 @@ async def search_jobs(
     page: int = 1,
 ) -> JobSearchResponse:
 
-    mcp = await get_mcp_client()
+    mcp = await get_mcp_client()  # ← Fixed: Added await
     tools = await mcp.get_tools()
     
     # Find the search_jobs tool
@@ -66,7 +66,7 @@ async def filter_jobs_by_skills(
     preferred_skills: List[str],
 ) -> JobFilterResponse:
 
-    mcp = await get_mcp_client()
+    mcp = await get_mcp_client()  # ← Fixed: Added await
     tools = await mcp.get_tools()
     
     # Find the filter tool
@@ -75,7 +75,7 @@ async def filter_jobs_by_skills(
         raise ValueError("filter_jobs_by_skills tool not found")
     
     result = await tool.ainvoke({
-        "jobs": [job.dict() for job in jobs],
+        "jobs": [job.dict() if hasattr(job, 'dict') else job for job in jobs],
         "required_skills": required_skills,
         "preferred_skills": preferred_skills,
     })
@@ -87,7 +87,7 @@ async def filter_jobs_by_skills(
 # -----------------------------------------
 
 async def get_job_categories(country: str = "in") -> Dict:
-    mcp = await get_mcp_client()
+    mcp = await get_mcp_client()  # ← Fixed: Added await
     tools = await mcp.get_tools()
     
     # Find the categories tool
@@ -103,7 +103,7 @@ async def get_job_categories(country: str = "in") -> Dict:
 # -----------------------------------------
 
 async def ping_job_service() -> Dict:
-    mcp = await get_mcp_client()
+    mcp = await get_mcp_client()  # ← Fixed: Added await
     tools = await mcp.get_tools()
     
     # Find the ping tool

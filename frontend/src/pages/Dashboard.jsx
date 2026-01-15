@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentUser } from "../utils/api";
+import { getCurrentUser,startGmailSync,getGmailStatus } from "../utils/api";
 import "../styles/dashboard.css";
 
 import TopHeader from "../components/layout/TopHeader";
@@ -17,24 +17,37 @@ import CalendarWidget from "../components/dashboard/CalendarWidget";
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [gmail,setGmail]=useState({
+    isConnected:false,
+    timestamp:"Not connected"
+  })
 
   // Fetch current user on component mount
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await getCurrentUser();
-        if (response.success) {
-          setUser(response.user);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+useEffect(() => {
+  const loadDashboard = async () => {
+    try {
+      const userRes = await getCurrentUser();
+      const gmailRes = await getGmailStatus();
 
-    fetchUser();
-  }, []);
+      setUser(userRes.user);
+
+      setGmail({
+        isConnected: gmailRes.connected,
+        timestamp: gmailRes.connected
+          ? `Synced ${new Date(gmailRes.lastSync).toLocaleString()}`
+          : "Not connected",
+      });
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadDashboard();
+}, []);
+
 
   // --- MOCK DATA SOURCE (Replace with Backend Data later) ---
   const data = {
@@ -42,10 +55,8 @@ export default function Dashboard() {
       isParsed: true,
       timestamp: "Updated 2 hours ago"
     },
-    gmail: {
-      isConnected: true,
-      timestamp: "Synced 5 mins ago"
-    },
+ 
+
     jobs: {
       isSynced: false,
       timestamp: "Last sync failed"
@@ -54,10 +65,10 @@ export default function Dashboard() {
 
   // --- LOGIC: AI Readiness Calculation ---
   const successCount = [
-    data.resume.isParsed, 
-    data.gmail.isConnected, 
-    data.jobs.isSynced
-  ].filter(Boolean).length;
+  data.resume.isParsed,
+  gmail.isConnected,
+  data.jobs.isSynced
+].filter(Boolean).length;
 
   let aiState = "error";
   let aiTitle = "Not Ready";
@@ -92,13 +103,15 @@ export default function Dashboard() {
           />
 
           {/* 2. GMAIL CARD */}
-          <StatusCard
-            type="gmail"
-            title="Gmail"
-            statusText={data.gmail.isConnected ? "Connected" : "Not Connected"}
-            lastUpdated={data.gmail.timestamp}
-            state={data.gmail.isConnected ? "success" : "error"}
-          />
+<StatusCard
+  type="gmail"
+  title="Gmail"
+  statusText={gmail.isConnected ? "Connected" : "Not Connected"}
+  lastUpdated={gmail.timestamp}
+  state={gmail.isConnected ? "success" : "error"}
+  onClick={!gmail.isConnected ? startGmailSync : undefined}
+/>
+
 
           {/* 3. JOBS CARD */}
           <StatusCard

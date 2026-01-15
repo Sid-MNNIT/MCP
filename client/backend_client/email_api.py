@@ -1,15 +1,12 @@
 # client/backend_client/email_api.py
-
 import os
 import requests
-from client.backend_client.auth import get_current_jwt
 
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:5000")
 
-def save_email(email: dict):
-    jwt = get_current_jwt()
+def save_email(email: dict, jwt: str):
     if not jwt:
-        raise RuntimeError("JWT not set. Call set_current_jwt() first.")
+        raise RuntimeError("JWT is required for save_email")
 
     res = requests.post(
         f"{BASE_URL}/api/emails",

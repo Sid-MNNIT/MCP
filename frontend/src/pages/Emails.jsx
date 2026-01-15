@@ -1,187 +1,186 @@
-import React, { useState, useMemo } from "react";
+
+
+
+import React, { useState, useMemo, useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import TopHeader from "../components/layout/TopHeader";
-import EmailSidebar from "../components/emails/EmailSidebar";
+
+ import EmailSidebar from "../components/emails/EmailSidebar";
 import EmailList from "../components/emails/EmailList";
 import EmailDetail from "../components/emails/EmailDetail";
 import ComposeModal from "../components/emails/ComposeModal";
+import mapEmailForUI from "../components/emails/EmailMapper.jsx";
+import AiReplyPreviewModal from "../components/emails/AiReplyPreviewModal.jsx"
 import "../styles/dashboard.css";
 import "../styles/email.css";
-
-const INITIAL_EMAILS = [
-
-  {
-
-    id: 1,
-
-    sender: "Sarah Jenkins",
-
-    company: "Google",
-
-    logo: "https://logo.clearbit.com/google.com",
-
-    subject: "Interview Availability: Senior Dev",
-
-    preview: "Hi Priyangshu, thanks for your application...",
-
-    time: "10:30 AM",
-
-    tag: "Interview",
-
-    tagType: "success",
-
-    folder: "interviews",
-
-    read: false,
-
-    body: "Hi Priyangshu,\n\nThanks for your application to Google. We were impressed by your portfolio and would like to schedule a 45-min technical screen.\n\nPlease let us know your availability for the coming Tuesday or Wednesday.\n\nBest,\nSarah Jenkins"
-
-  },
-
-  {
-
-    id: 2,
-
-    sender: "Airbnb Team",
-
-    company: "Airbnb",
-
-    logo: "https://logo.clearbit.com/airbnb.com",
-
-    subject: "Technical Task Update",
-
-    preview: "Your code submission has been received...",
-
-    time: "Yesterday",
-
-    tag: "Assessment",
-
-    tagType: "warning",
-
-    folder: "assessments",
-
-    read: true,
-
-    body: "Hi Priyangshu,\n\nWe received your take-home assignment. Our engineering team will review it over the next 48 hours.\n\nRegards,\nAirbnb Talent Team"
-
-  },
-
-  {
-
-    id: 3,
-
-    sender: "Stripe Careers",
-
-    company: "Stripe",
-
-    logo: "https://logo.clearbit.com/stripe.com",
-
-    subject: "Update on your application",
-
-    preview: "Thank you for your interest in Stripe...",
-
-    time: "2 days ago",
-
-    tag: "Rejection",
-
-    tagType: "error",
-
-    folder: "rejections",
-
-    read: true,
-
-    body: "Hello,\n\nThank you for your interest in Stripe. After careful consideration, we have decided to move forward with other candidates.\n\nWe will keep your resume on file."
-
-  },
-
-  {
-
-    id: 4,
-
-    sender: "Microsoft HR",
-
-    company: "Microsoft",
-
-    logo: "https://logo.clearbit.com/microsoft.com",
-
-    subject: "Offer Letter: Frontend Engineer",
-
-    preview: "Congratulations! We are pleased to offer...",
-
-    time: "Last Week",
-
-    tag: "Offer",
-
-    tagType: "success",
-
-    folder: "offers",
-
-    read: false,
-
-    body: "Dear Priyangshu,\n\nWe are pleased to offer you the position of Frontend Engineer at Microsoft..."
-
-  }
-
-];
+import { getEmails,generateAiReplyPreview,sendAiReply } from "../utils/api.js";
 
 export default function Emails() {
-  const [emailData, setEmailData] = useState(INITIAL_EMAILS);
+
   const [selectedFolder, setSelectedFolder] = useState("all");
+
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // --- New Sync States ---
+  const [emails, setEmails] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState("Oct 24, 10:30 AM"); 
-  
+  const [lastSynced, setLastSynced] = useState("Oct 24, 10:30 AM");
+
+  // Compose
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeInitialData, setComposeInitialData] = useState(null);
 
+  // Set Reply Loading
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+
+  //Ai Reply Preview
+  const [aiPreviewDraft, setAiPreviewDraft] = useState(null);
+
+  //Sending reply
+  const [isSending, setIsSending] = useState(false);
+
+
+
+
+
+  // Fetch emails
+  useEffect(() => {
+    const loadEmails = async () => {
+      try {
+        const res = await getEmails();
+        const mapped = (res.emails || []).map(mapEmailForUI);
+        setEmails(mapped);
+      } catch (err) {
+        console.error("Failed to load emails", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEmails();
+  }, []);
+
+  // Filter + search
   const filteredEmails = useMemo(() => {
-    let data = emailData;
+    let data = emails;
+
+
     if (selectedFolder !== "all") {
-      data = data.filter((email) => email.folder === selectedFolder);
+      data = data.filter((email) => email.tag === selectedFolder);
     }
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      data = data.filter(email => 
-        email.sender.toLowerCase().includes(query) ||
-        email.subject.toLowerCase().includes(query) ||
-        email.company.toLowerCase().includes(query)
+      data = data.filter(
+        (email) =>
+          (email.sender || "").toLowerCase().includes(query) ||
+          (email.subject || "").toLowerCase().includes(query) ||
+          (email.company || "").toLowerCase().includes(query)
       );
     }
-    return data;
-  }, [selectedFolder, emailData, searchQuery]);
 
+    return data;
+  }, [emails, searchQuery]);
+
+  // Clear selected email if it disappears due to filtering
+  useEffect(() => {
+    if (
+      selectedEmail &&
+      !filteredEmails.find((e) => e.id === selectedEmail.id)
+    ) {
+      setSelectedEmail(null);
+    }
+  }, [filteredEmails, selectedEmail]);
+
+  // Email click
   const handleEmailClick = (email) => {
+    console.log("Clicked email:", email);
     setSelectedEmail(email);
+
     if (!email.read) {
-      const updatedList = emailData.map((e) => 
-        e.id === email.id ? { ...e, read: true } : e
+      setEmails((prev) =>
+        prev.map((e) =>
+          e.id === email.id ? { ...e, read: true } : e
+        )
       );
-      setEmailData(updatedList);
     }
   };
 
-  // --- Updated Sync Handler ---
+
   const handleSync = () => {
     setIsSyncing(true);
-    // Simulate API call
-    setTimeout(() => { 
+    setTimeout(() => {
       setIsSyncing(false);
       const now = new Date();
-      setLastSynced(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastSynced(
+        now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
     }, 2000);
   };
 
-  const handleReply = (email) => {
-    setComposeInitialData({
-      to: `${email.sender} <recruiter@${email.company.toLowerCase()}.com>`,
-      subject: `Re: ${email.subject}`,
-      body: "" 
+  // Reply handler
+const handleReply = (email) => {
+  setComposeInitialData({
+    to: email.senderEmail,        // ✅ THIS IS THE KEY FIX
+    subject: `Re: ${email.subject}`,
+    body: "",
+    messageId: email.messageId,
+    threadId: email.threadId,
+    in_reply_to: email.messageId
+  });
+
+  setIsComposeOpen(true);
+};
+
+
+
+  
+  
+const handleGenerateAiReply = async (email) => {
+  try {
+    console.log("🟢 AI click email:", email); // ✅ keep for debug
+
+    setIsAiLoading(true);
+
+    const result = await generateAiReplyPreview({
+      messageId: email.messageId,   
+      tone: "professional"
     });
-    setIsComposeOpen(true);
-  };
+
+    console.log("🟢 AI preview result:", result); // ✅ IMPORTANT
+
+    // ✅ SHOW AI PREVIEW MODAL
+    setAiPreviewDraft({
+      draft: result.draft,          // ← comes from backend now
+      originalEmail: email
+    });
+
+  } catch (err) {
+    console.error("❌ AI reply generation failed", err);
+  } finally {
+    setIsAiLoading(false);
+  }
+};
+
+
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="dashboard-shell">
+        <Sidebar />
+        <main className="dashboard-root">
+          <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
+          <p style={{ padding: "1rem" }}>Loading emails…</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-shell">
@@ -190,45 +189,109 @@ export default function Emails() {
         <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
 
         <div className={`email-container ${selectedEmail ? "split-view" : ""}`}>
-          
-          {/* ✅ Pass Sync Props Here */}
-          <EmailSidebar 
-            selectedFolder={selectedFolder} 
-            onSelectFolder={(id) => { setSelectedFolder(id); setSelectedEmail(null); }}
-            onComposeClick={() => { setComposeInitialData(null); setIsComposeOpen(true); }}
-            lastSynced={lastSynced}
-            isSyncing={isSyncing}
-            onSync={handleSync}
-          />
-          
-          <EmailList 
-            emails={filteredEmails} 
-            selectedEmail={selectedEmail} 
+
+          {
+       <EmailSidebar
+  onComposeClick={() => {
+    setComposeInitialData(null);
+    setIsComposeOpen(true);
+  }}
+  onShowEmails={() => setSelectedEmail(null)}
+  onSync={handleSync}
+  isSyncing={isSyncing}
+  lastSynced={lastSynced}
+/>
+
+          }
+
+          <EmailList
+            emails={filteredEmails}
+            selectedEmail={selectedEmail}
             onSelectEmail={handleEmailClick}
             fullWidth={!selectedEmail}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSync={handleSync}
-            isSyncing={isSyncing}
           />
-          
-          {selectedEmail && (
-            <EmailDetail 
-              email={selectedEmail} 
-              onClose={() => setSelectedEmail(null)}
-              onReply={() => handleReply(selectedEmail)}
-              onAiReply={() => handleReply(selectedEmail)}
-              isAiLoading={false}
-            />
-          )}
+
+       {selectedEmail && (
+  <EmailDetail
+    email={selectedEmail}
+    onClose={() => setSelectedEmail(null)}
+    onReply={handleReply}
+    onGenerateAiReply={handleGenerateAiReply}
+    isAiLoading={isAiLoading}
+  />
+)}
+
         </div>
 
-        {isComposeOpen && (
-          <ComposeModal 
-            onClose={() => setIsComposeOpen(false)} 
-            initialData={composeInitialData}
-          />
-        )}
+{isComposeOpen && (
+  <ComposeModal
+    initialData={composeInitialData}
+    onClose={() => setIsComposeOpen(false)}
+    isAiLoading={isAiLoading}
+    isSending={isSending}
+
+    onAskAi={async () => {
+      setIsAiLoading(true);
+      try {
+        const res = await generateAiReplyPreview({
+          messageId: composeInitialData.messageId,
+          tone: "professional"
+        });
+
+        setComposeInitialData(prev => ({
+          ...prev,
+          body: res.draft.body
+        }));
+      } finally {
+        setIsAiLoading(false);
+      }
+    }}
+
+    onSend={async (draft) => {
+      setIsSending(true);
+      try {
+        await sendAiReply(draft);
+        setIsComposeOpen(false);   // ✅ close on success
+      } catch (err) {
+        console.error("❌ Send failed", err);
+        alert("Failed to send email");
+      } finally {
+        setIsSending(false);
+      }
+    }}
+  />
+)}
+
+
+
+
+
+
+       {aiPreviewDraft && (
+  <AiReplyPreviewModal
+    draft={aiPreviewDraft.draft}
+    originalEmail={aiPreviewDraft.originalEmail}
+    onClose={() => setAiPreviewDraft(null)}
+    onEditInCompose={(draft) => {
+      setComposeInitialData(draft);
+      setIsComposeOpen(true);
+      setAiPreviewDraft(null);
+    }}
+    onSend={async (draft) => {
+      // Later: call send-email backend
+      console.log("Sending draft:", draft);
+      setAiPreviewDraft(null);
+    }}
+  />
+)}
+
+
+
+
+
+
       </main>
     </div>
   );

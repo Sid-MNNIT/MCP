@@ -5,7 +5,7 @@
  * and saved jobs logic for Career Copilot.
  *
  * Architecture:
- * Node Backend → Python Orchestrator → MCP Servers
+ * Node Backend → Python Orchestrator Pipelines → MCP Servers
  */
 
 import { callMCP } from "./mcp.service.js";
@@ -13,7 +13,7 @@ import { User } from "../models/user.model.js";
 
 class JobsService {
   /* ===================================================== */
-  /* Job Search                                            */
+  /* Job Search Pipeline                                   */
   /* ===================================================== */
 
   async searchJobs(
@@ -22,19 +22,24 @@ class JobsService {
     where = "",
     maxResults = 10,
     page = 1,
-    userId = null
+    userId = null,
+    jwt=null
   ) {
     try {
+      console.log(`🔍 Searching jobs: keywords="${keywords}", location="${where}"`);
+      
       return await callMCP({
-        tool: "search_jobs",
+        endpoint: "/pipelines/job-search",  // ← Using pipeline
         args: {
           keywords,
+          location: where,  // ← Changed from 'where' to 'location'
           country,
-          where,
-          max_results: maxResults,
+          maxResults,
           page,
+          useResumeMatching: false,  // Phase 2: Can be made dynamic
         },
         userId,
+        jwt
       });
     } catch (error) {
       console.error("❌ Job search error:", error);
@@ -44,8 +49,10 @@ class JobsService {
 
   async getJobCategories(country = "in", userId = null) {
     try {
+      // Note: This is a GET endpoint, but we're calling via POST
+      // You might want to adjust this based on your needs
       return await callMCP({
-        tool: "get_job_categories",
+        endpoint: "/pipelines/job-categories",
         args: { country },
         userId,
       });
@@ -56,7 +63,33 @@ class JobsService {
   }
 
   /* ===================================================== */
-  /* Job Matching                                          */
+  /* Job Recommendations Pipeline                          */
+  /* ===================================================== */
+
+  async getRecommendedJobs(userId) {
+    try {
+      console.log(`✨ Getting recommendations for user: ${userId}`);
+      
+      // Pipeline handles everything:
+      // - Fetching user profile
+      // - Extracting skills
+      // - Searching jobs
+      // - Matching and ranking
+      return await callMCP({
+        endpoint: "/pipelines/job-recommendations",  // ← Using pipeline
+        args: {
+          maxResults: 20,
+        },
+        userId,
+      });
+    } catch (error) {
+      console.error("❌ Recommendation error:", error);
+      throw new Error("Failed to get job recommendations");
+    }
+  }
+
+  /* ===================================================== */
+  /* Job Matching (Legacy - kept for backward compat)     */
   /* ===================================================== */
 
   async matchJobsToResume(userId, jobs) {
@@ -71,8 +104,10 @@ class JobsService {
       const requiredSkills = user.resume.skills.slice(0, 3);
       const preferredSkills = user.resume.skills.slice(3, 8);
 
+      // Note: This still uses legacy /agent/execute
+      // Can be moved to pipeline in Phase 2
       return await callMCP({
-        tool: "filter_jobs_by_skills",
+        tool: "filter_jobs_by_skills",  // Legacy tool
         args: {
           jobs,
           required_skills: requiredSkills,
@@ -83,51 +118,6 @@ class JobsService {
     } catch (error) {
       console.error("❌ Job matching error:", error);
       throw new Error("Failed to match jobs");
-    }
-  }
-
-  /* ===================================================== */
-  /* Job Recommendations                                   */
-  /* ===================================================== */
-
-  async getRecommendedJobs(userId) {
-    try {
-      const user = await User.findById(userId);
-
-      if (!user?.resume?.skills?.length) {
-        throw new Error("Resume not found");
-      }
-
-      const keywords = user.resume.skills.slice(0, 3).join(" ");
-      const country = user.preferences?.country || "in";
-      const where = user.preferences?.city || "";
-
-      const searchResult = await this.searchJobs(
-        keywords,
-        country,
-        where,
-        20,
-        1,
-        userId
-      );
-
-      if (!searchResult?.success || !searchResult.jobs?.length) {
-        return { success: true, jobs: [], total: 0 };
-      }
-
-      const matchResult = await this.matchJobsToResume(
-        userId,
-        searchResult.jobs
-      );
-
-      return {
-        success: true,
-        jobs: matchResult.matched_jobs || [],
-        total: matchResult.total_matches || 0,
-      };
-    } catch (error) {
-      console.error("❌ Recommendation error:", error);
-      throw new Error("Failed to get job recommendations");
     }
   }
 
@@ -162,6 +152,8 @@ class JobsService {
 
       await user.save();
 
+      console.log(`💾 Job saved: ${job.id} for user ${userId}`);
+
       return { success: true, message: "Job saved successfully" };
     } catch (error) {
       console.error("❌ Save job error:", error);
@@ -172,6 +164,8 @@ class JobsService {
   async getSavedJobs(userId) {
     const user = await User.findById(userId);
     if (!user) throw new Error("User not found");
+
+    console.log(`📋 Fetching saved jobs for user: ${userId}`);
 
     return {
       success: true,
@@ -188,6 +182,8 @@ class JobsService {
     );
 
     await user.save();
+
+    console.log(`🗑️ Job unsaved: ${jobId} for user ${userId}`);
 
     return {
       success: true,

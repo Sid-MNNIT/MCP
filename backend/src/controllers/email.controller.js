@@ -7,9 +7,9 @@ const storeEmail = asyncHandler(async (req, res) => {
 
   const userId = req.user._id;
 
-  const { emailId, type, from, subject, text, date } = req.body;
+  const { emailId,threadId, type, from, subject, text, date } = req.body;
 
-  if (!emailId || !type || !from || !date) {
+  if (!emailId || !type || !from || !date || !threadId) {
     throw new Error("Missing required email fields");
   }
 
@@ -21,6 +21,7 @@ const storeEmail = asyncHandler(async (req, res) => {
         type,
         from,
         subject,
+        threadId,
         text,
         date: new Date(date),
         isEmbedded: false,
@@ -79,9 +80,20 @@ const deleteEmail = asyncHandler(async (req, res) => {
     message: "Email deleted successfully",
   });
 });
+const getUserEmail=asyncHandler(async (req,res)=>{
+  const emails=await Email.find({userId:req.user._id})
+  .sort({date:-1})
+  .lean();
+
+  res.status(200).json({
+    success:true,
+    emails
+  })
+})
 
 export {
   storeEmail,
   listEmails,
   deleteEmail,
+  getUserEmail
 };

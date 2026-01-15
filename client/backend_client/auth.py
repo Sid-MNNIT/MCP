@@ -1,16 +1,12 @@
+from contextvars import ContextVar
 
-
-_CURRENT_JWT = None
+_current_jwt: ContextVar[str | None] = ContextVar("current_jwt", default=None)
 
 def set_current_jwt(jwt: str):
-    global _CURRENT_JWT
-    _CURRENT_JWT = jwt
+    _current_jwt.set(jwt)
 
 def get_current_jwt() -> str:
-    if not _CURRENT_JWT:
+    jwt = _current_jwt.get()
+    if not jwt:
         raise RuntimeError("JWT not set in context")
-    return _CURRENT_JWT
-
-def clear_current_jwt():
-    global _CURRENT_JWT
-    _CURRENT_JWT = None
+    return jwt

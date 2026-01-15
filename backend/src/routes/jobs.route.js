@@ -13,8 +13,8 @@ import {
 const router = Router();
 
 /* ---------------- PUBLIC ---------------- */
-router.get("/search",searchJobs);
-router.get("/categories", getJobCategories);
+router.get("/search",verifyJWT,searchJobs);
+router.get("/categories", verifyJWT, getJobCategories);
 
 /* --------------- PROTECTED -------------- */
 router.get("/recommended", verifyJWT, getRecommendedJobs);

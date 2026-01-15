@@ -1,12 +1,13 @@
 import httpx
-from client.backend_client.auth import get_current_jwt
 
 BASE_URL = "http://localhost:5000"
 
-async def execute_tool(tool: str, args: dict):
-    jwt = get_current_jwt()
+async def execute_tool(tool: str, args: dict, jwt: str):
+    if not jwt:
+        raise RuntimeError("JWT is required for execute_tool")
+    print(jwt,"Agent-api-py")
 
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(
             f"{BASE_URL}/api/agent/execute",
             json={
@@ -26,3 +27,6 @@ async def execute_tool(tool: str, args: dict):
         raise RuntimeError("Backend agent execution failed")
 
     return res.json()
+
+
+

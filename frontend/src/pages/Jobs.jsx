@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "../styles/jobs.css";
 
 import Sidebar from "../components/layout/Sidebar";
@@ -10,12 +11,15 @@ import JobDetails from "../components/jobs/JobDetails";
 import { searchJobs, getRecommendedJobs, saveJob, unsaveJob, getSavedJobs } from "../utils/api";
 
 const Jobs = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   /* ============================= */
   /* Filters (BACKEND CONTRACT)    */
   /* ============================= */
   const [filters, setFilters] = useState({
-    keywords: "",
-    location: "",
+    keywords: searchParams.get("keywords") || "",
+    location: searchParams.get("location") || "",
     category: "",
     jobType: "full_time",
     minSalary: "",
@@ -43,7 +47,42 @@ const Jobs = () => {
   /* ============================= */
   useEffect(() => {
     loadSavedJobs();
+    
+    // If there are search params on mount, auto-search
+    if (searchParams.get("keywords")) {
+      handleSearchJobs();
+    }
   }, []);
+
+  /* ============================= */
+  /* Keyboard Shortcuts            */
+  /* ============================= */
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // ESC to close job details
+      if (e.key === "Escape" && showJobDetails) {
+        setShowJobDetails(false);
+      }
+      
+      // Arrow keys to navigate jobs
+      if (selectedJob && jobs.length > 0) {
+        const currentIndex = jobs.findIndex(job => job.id === selectedJob.id);
+        
+        if (e.key === "ArrowDown" && currentIndex < jobs.length - 1) {
+          e.preventDefault();
+          handleSelectJob(jobs[currentIndex + 1]);
+        }
+        
+        if (e.key === "ArrowUp" && currentIndex > 0) {
+          e.preventDefault();
+          handleSelectJob(jobs[currentIndex - 1]);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedJob, jobs, showJobDetails]);
 
   const loadSavedJobs = async () => {
     try {
@@ -78,6 +117,12 @@ const Jobs = () => {
       setLoading(true);
       setError(null);
 
+      // Update URL with search params
+      setSearchParams({
+        keywords: filters.keywords,
+        ...(filters.location && { location: filters.location }),
+      });
+
       const response = await searchJobs({
         keywords: filters.keywords,
         location: filters.location,
@@ -88,17 +133,20 @@ const Jobs = () => {
 
       console.log("Search response:", response);
 
-      // Handle the response structure from backend
       if (response.success === false) {
         throw new Error(response.message || "Failed to search jobs");
       }
 
-      // The backend returns: { statusCode, data: { success, jobs, count, ... }, message }
       const jobList = response.data?.jobs || [];
 
       setJobs(jobList);
-      setSelectedJob(jobList[0] || null);
-      setShowJobDetails(jobList.length > 0);
+      if (jobList.length > 0) {
+        setSelectedJob(jobList[0]);
+        setShowJobDetails(true);
+      } else {
+        setSelectedJob(null);
+        setShowJobDetails(false);
+      }
     } catch (error) {
       console.error("❌ Failed to fetch jobs:", error);
       setError(error.message || "Failed to search jobs. Please try again.");
@@ -123,8 +171,13 @@ const Jobs = () => {
       const jobList = response.data?.jobs || [];
 
       setJobs(jobList);
-      setSelectedJob(jobList[0] || null);
-      setShowJobDetails(jobList.length > 0);
+      if (jobList.length > 0) {
+        setSelectedJob(jobList[0]);
+        setShowJobDetails(true);
+      } else {
+        setSelectedJob(null);
+        setShowJobDetails(false);
+      }
     } catch (error) {
       console.error("❌ Failed to fetch recommended jobs:", error);
       setError(error.message || "Failed to load recommendations. Please ensure you're logged in.");
@@ -148,11 +201,15 @@ const Jobs = () => {
 
       if (response.success !== false) {
         setSavedJobIds(prev => new Set([...prev, job.id]));
+        
+        // Show success feedback (optional)
+        console.log("✅ Job saved successfully");
       } else {
         console.error("Failed to save job:", response.message);
       }
     } catch (error) {
       console.error("❌ Failed to save job:", error);
+      setError("Failed to save job. Please try again.");
     }
   };
 
@@ -166,15 +223,25 @@ const Jobs = () => {
           newSet.delete(jobId);
           return newSet;
         });
+        
+        console.log("✅ Job unsaved successfully");
       }
     } catch (error) {
       console.error("❌ Failed to unsave job:", error);
+      setError("Failed to unsave job. Please try again.");
     }
   };
 
   const handleSelectJob = (job) => {
     setSelectedJob(job);
     setShowJobDetails(true);
+    
+    // Optional: Update URL with job ID for sharing
+    // setSearchParams({ ...Object.fromEntries(searchParams), jobId: job.id });
+  };
+
+  const handleCloseDetails = () => {
+    setShowJobDetails(false);
   };
 
   /* ============================= */
@@ -196,20 +263,10 @@ const Jobs = () => {
         </div>
 
         {/* Recommended Jobs Button */}
-        <div style={{ padding: "0 24px", marginBottom: "16px" }}>
+        <div style={{ padding: "0 24px", marginBottom: "20px" }}>
           <button
             onClick={handleLoadRecommended}
             className="btn-recommended"
-            style={{
-              padding: "8px 16px",
-              background: "#6366f1",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-            }}
           >
             ✨ Get Recommended Jobs
           </button>
@@ -218,15 +275,34 @@ const Jobs = () => {
         {/* Error Message */}
         {error && (
           <div style={{
-            margin: "0 24px 16px",
-            padding: "12px 16px",
+            margin: "0 24px 20px",
+            padding: "14px 18px",
             background: "#fee2e2",
             border: "1px solid #fecaca",
-            borderRadius: "8px",
+            borderRadius: "12px",
             color: "#991b1b",
             fontSize: "14px",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
           }}>
-            {error}
+            <span>⚠️</span>
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                marginLeft: "auto",
+                background: "none",
+                border: "none",
+                color: "#991b1b",
+                cursor: "pointer",
+                fontSize: "18px",
+                padding: "0 4px",
+              }}
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -264,7 +340,7 @@ const Jobs = () => {
           <JobDetails
             job={selectedJob}
             isVisible={showJobDetails}
-            onClose={() => setShowJobDetails(false)}
+            onClose={handleCloseDetails}
             isSaved={selectedJob ? savedJobIds.has(selectedJob.id) : false}
             onSaveJob={handleSaveJob}
             onUnsaveJob={handleUnsaveJob}

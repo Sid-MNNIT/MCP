@@ -25,13 +25,19 @@ export const searchJobs = asyncHandler(async (req, res) => {
   if (!keywords) {
     throw new ApiError(400, "Keywords are required");
   }
-
+ 
+ 
+  // Extract JWT from request
+  const token = req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.accessToken;
+ 
   const result = await jobsService.searchJobs(
     keywords,
     country,
     location, // mapped internally to MCP "where"
     Number(maxResults),
-    Number(page)
+    Number(page),
+    req.user?._id,  // userId (might be undefined for public routes)
+    token  
   );
 
   return res

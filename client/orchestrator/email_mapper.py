@@ -44,6 +44,8 @@ def map_to_backend(email):
 
         "type": email_type,
 
+        "threadId": email["threadId"],
+
         "from": email.get("from", ""),
         "subject": email.get("subject", ""),
         "text": email.get("body", ""),
