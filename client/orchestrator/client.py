@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 import os
 
 from client.mcp.client import get_mcp_client
-from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval
+from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval,ingest_and_store_emails
 
 app = FastAPI()
 
@@ -110,3 +110,22 @@ async def email_reply_send(request: Request):
 
     result = await send_email_with_approval(draft, jwt)
     return result
+
+
+@app.post("/pipelines/email-sync")
+async def email_sync(request: Request):
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    jwt = request.state.jwt
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    print(jwt, "APP>POST/PIPELINE EMAIL SYNC")
+
+    result = await ingest_and_store_emails(jwt)
+
+    return {
+        "status": "ok",
+        "synced": len(result)
+    }

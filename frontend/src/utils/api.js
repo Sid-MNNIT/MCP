@@ -136,3 +136,22 @@ export const sendAiReply = async (draft) => {
   return await res.json();
 };
 
+
+export const syncEmails = async () => {
+  const res = await fetch(`${BASE_URL}/agent/email-sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include", 
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "Failed to sync emails");
+  }
+
+  return await res.json();
+};
+
+

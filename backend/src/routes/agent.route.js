@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
-import { executeAgentTool,emailReplyPreview,emailReplySend } from "../controllers/agent.controller.js";
+import { executeAgentTool,emailReplyPreview,emailReplySend, emailSync } from "../controllers/agent.controller.js";
 
 const router = Router();
 
@@ -22,6 +22,12 @@ router.post(
   verifyJWT,
   emailReplySend
 );
+
+router.post(
+  "/email-sync",
+  verifyJWT,
+  emailSync
+)
 
 
 

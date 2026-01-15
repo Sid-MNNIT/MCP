@@ -47,7 +47,7 @@ export default function EmailSidebar({
               size={16}
               className={isSyncing ? "spin-anim" : ""}
             />
-            <span>{isSyncing ? "Syncing…" : "Re-ingest Gmail"}</span>
+            <span>{isSyncing ? "Syncing…" : "Sync Email"}</span>
           </button>
 
         </div>

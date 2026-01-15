@@ -27,9 +27,9 @@
   /* SIZING */
   --sidebar-width: 240px;
   --sidebar-collapsed: 80px;
-  --list-width: 440px;
+  --list-width: 400px;        
   /* ⚡️ CHANGED: Much tighter list to save space for Detail View */
-  --list-width-compact: 260px; 
+  --list-width-compact: 320px;
 }
 
 /* DARK MODE OVERRIDES */
@@ -63,11 +63,12 @@
 @media (min-width: 1351px) {
   .email-container.split-view {
     grid-template-columns: 
-      var(--action-sidebar-width) 
-      var(--list-width) 
-      1fr;
+      var(--action-sidebar-width)
+      minmax(360px, var(--list-width))
+      minmax(520px, 1fr);
   }
 }
+
 
 
 /* PANELS */
@@ -703,29 +704,31 @@
 /* 🟡 ACTION SIDEBAR COMPACT MODE */
 @media (max-width: 1350px) {
   .email-container {
-    grid-template-columns: var(--action-sidebar-collapsed) 1fr;
+    grid-template-columns: var(--action-sidebar-width) 1fr;
   }
 
   .email-container.split-view {
-    grid-template-columns:
-      var(--action-sidebar-collapsed)
-      var(--list-width-compact)
-      1fr;
-  }
+  grid-template-columns:
+    var(--action-sidebar-width)
+    minmax(300px, var(--list-width-compact))
+    minmax(420px, 1fr);
+}
 
-  .email-sidebar {
-    padding: 8px;
-    align-items: center;
-  }
 
-  .sidebar-btn span {
-    display: none;
-  }
 
-  .sidebar-btn {
-    justify-content: center;
-    padding: 12px;
-  }
+ .email-sidebar {
+  padding: 12px;
+  align-items: stretch;
+}
+
+
+
+
+.sidebar-btn {
+  justify-content: flex-start;
+  padding: 12px 14px;
+}
+
 }
 
 /* 🔴 PHASE 3: COLLAPSED VIEW (< 1000px) */

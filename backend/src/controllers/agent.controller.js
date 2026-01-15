@@ -126,3 +126,41 @@ export async function emailReplySend(req, res) {
     res.status(500).json({ error: "Failed to send email" });
   }
 }
+
+export async function emailSync(req, res) {
+  try {
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
+    if (!jwt) {
+      return res.status(401).json({ error: "JWT missing" });
+    }
+
+    const response = await fetch(
+      "http://localhost:9000/pipelines/email-sync",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Service-Key": process.env.SERVICE_KEY,
+          "Authorization": `Bearer ${jwt}`
+        },
+        body: JSON.stringify({
+          userId: req.user._id
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const data = await response.json();
+    return res.json(data);
+
+  } catch (err) {
+    console.error("❌ emailSync failed:", err);
+    res.status(500).json({ error: "Email sync failed" });
+  }
+}
