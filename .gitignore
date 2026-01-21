@@ -1,0 +1,11 @@
+# Python virtual environment
+venv/
+__pycache__/
+
+# Secrets
+*.env
+token.json
+credentials.json
+
+# OS noise
+.DS_Store
