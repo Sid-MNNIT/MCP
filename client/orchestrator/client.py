@@ -2,13 +2,16 @@ from fastapi import FastAPI, Request, HTTPException
 import os
 
 from client.mcp.client import get_mcp_client
-from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval
+from client.orchestrator.email_agent import prepare_email_reply_preview, send_email_with_approval
 
 from client.orchestrator.job_agent import (
     search_jobs_pipeline,
     get_personalized_recommendations,
     fetch_job_categories,
 )
+
+# ✅ NEW: import resume pipeline
+from client.orchestrator.resume_agent import parse_resume_pipeline
 
 app = FastAPI()
 
@@ -82,7 +85,7 @@ async def email_reply_preview(request: Request):
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
 
-    print(jwt,"APP>POST/PIPELINE")
+    print(jwt, "APP>POST/PIPELINE")
 
     if not message_id or not user_id:
         raise HTTPException(
@@ -118,40 +121,31 @@ async def email_reply_send(request: Request):
     return result
 
 
-
 # ============================================================
 # JOB PIPELINES
 # ============================================================
 
 @app.post("/pipelines/job-search")
 async def job_search_pipeline_endpoint(request: Request):
-    """
-    Job search pipeline endpoint.
-    
-    Handles:
-    - Basic job search via Adzuna
-    - Optional resume matching (Phase 2)
-    - Skill-based filtering and ranking
-    """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized service")
-    
+
     body = await request.json()
     jwt = request.state.jwt
-    
+
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
-    
+
     user_id = body.get("userId")
     if not user_id:
         raise HTTPException(status_code=400, detail="userId required")
-    
+
     keywords = body.get("keywords", "")
     if not keywords:
         raise HTTPException(status_code=400, detail="keywords required")
-    
+
     print(f"📥 Job search request: keywords='{keywords}', user={user_id}")
-    
+
     result = await search_jobs_pipeline(
         keywords=keywords,
         location=body.get("location", ""),
@@ -162,58 +156,95 @@ async def job_search_pipeline_endpoint(request: Request):
         max_results=body.get("maxResults", 20),
         page=body.get("page", 1),
     )
-    
+
     print(f"📤 Job search response: success={result.get('success')}, count={result.get('count', 0)}")
-    
+
     return result
 
 
 @app.post("/pipelines/job-recommendations")
 async def job_recommendations_pipeline_endpoint(request: Request):
-    """
-    Personalized job recommendations pipeline.
-    
-    Phase 1: Returns generic software jobs
-    Phase 2: Will use user profile for personalized matching
-    """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     body = await request.json()
     jwt = request.state.jwt
-    
+
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
-    
+
     user_id = body.get("userId")
     if not user_id:
         raise HTTPException(status_code=400, detail="userId required")
-    
+
     print(f"📥 Recommendations request: user={user_id}")
-    
+
     result = await get_personalized_recommendations(
         user_id=user_id,
         jwt=jwt,
         max_results=body.get("maxResults", 20),
     )
-    
+
     print(f"📤 Recommendations response: success={result.get('success')}, count={result.get('count', 0)}")
-    
+
     return result
 
 
 @app.get("/pipelines/job-categories")
 async def job_categories_pipeline_endpoint(request: Request):
-    """
-    Fetch available job categories.
-    """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     country = request.query_params.get("country", "in")
-    
+
     print(f"📥 Categories request: country={country}")
-    
+
     result = await fetch_job_categories(country=country)
-    
+
+    return result
+
+# RESUME PIPELINE
+
+@app.post("/pipelines/resume-parse")
+async def resume_parse_pipeline_endpoint(request: Request):
+    """
+    Resume parsing pipeline endpoint.
+
+    Input JSON:
+      {
+        "userId": "...",
+        "file_b64": "...",
+        "filename": "resume.pdf" (optional),
+        "mimetype": "application/pdf" (optional)
+      }
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    user_id = body.get("userId")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
+
+    file_b64 = body.get("file_b64")
+    if not file_b64:
+        raise HTTPException(status_code=400, detail="file_b64 required")
+
+    print(f"📥 Resume parse request: user={user_id}")
+
+    result = await parse_resume_pipeline(
+        user_id=user_id,
+        jwt=jwt,
+        file_b64=file_b64,
+        filename=body.get("filename", "resume.pdf"),
+        mimetype=body.get("mimetype", "application/pdf"),
+    )
+
+    print(f"📤 Resume parse response: success={result.get('success')}")
+
     return result

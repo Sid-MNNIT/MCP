@@ -1,73 +1,94 @@
+import json
 from typing import Dict, Any
 
-# Helpers
-def _safe_list(value):
-    if isinstance(value, list):
-        return value
-    return []
+from client.mcp.client import get_mcp_client
 
 
-def _safe_str(value):
-    if isinstance(value, str):
-        return value.strip()
-    return ""
-
-
-def _safe_int(value, default=0):
-    try:
-        return int(value)
-    except Exception:
-        return default
-
-# Main wrapper
-def normalize_resume_mcp_response(mcp_response: Dict[str, Any]) -> Dict[str, Any]:
+# -----------------------------------------
+# Internal helper
+# -----------------------------------------
+def _unwrap(result):
     """
-    Normalize output from resume MCP.
+    Unwrap MCP tool response.
 
-    Expected MCP response:
-    {
-      "status": "ok",
-      "result": {
-        "sections": {...},
-        "entities": {...}
-      }
-    }
+    MCP sometimes returns:
+    - dict directly
+    - list of items where one has {type:"text", text:"{...json...}"}
     """
+    if isinstance(result, dict):
+        return result
 
-    if not mcp_response or mcp_response.get("status") != "ok":
+    if isinstance(result, list):
+        for item in result:
+            if isinstance(item, dict) and item.get("type") == "text":
+                return json.loads(item["text"])
+        return result[0] if result else {}
+
+    raise ValueError(f"Unexpected MCP response: {result}")
+
+
+# -----------------------------------------
+# Resume parsing
+# -----------------------------------------
+async def parse_resume_pdf(file_b64: str) -> Dict[str, Any]:
+    """
+    Calls resume_mcp tool: parse_resume
+    """
+    mcp = await get_mcp_client()
+    tools = await mcp.get_tools()
+
+    tool = next((t for t in tools if t.name == "parse_resume"), None)
+    if not tool:
+        raise ValueError("parse_resume tool not found")
+
+    result = await tool.ainvoke({
+        "file_b64": file_b64
+    })
+
+    data = _unwrap(result)
+
+    if data.get("status") != "ok":
         return {
-            "status": "error",
-            "error": mcp_response.get("error", "UNKNOWN_ERROR"),
-            "message": mcp_response.get("message", "Resume parsing failed"),
+            "success": False,
+            "error": data.get("message") or "parse_resume failed",
+            "raw": data,
         }
-
-    result = mcp_response.get("result", {})
-
-    sections = result.get("sections", {})
-    entities = result.get("entities", {})
-
-    normalized = {
-        "sections": {
-            "experience": _safe_str(sections.get("experience")),
-            "projects": _safe_str(sections.get("projects")),
-            "skills": _safe_str(sections.get("skills")),
-            "education": _safe_str(sections.get("education")),
-            "certifications": _safe_str(sections.get("certifications")),
-            "achievements": _safe_str(sections.get("achievements")),
-            "other": _safe_str(sections.get("other")),
-        },
-        "entities": {
-            "roles": _safe_list(entities.get("roles")),
-            "normalized_roles": _safe_list(entities.get("normalized_roles")),
-            "seniority": _safe_list(entities.get("seniority")),
-            "skills": _safe_list(entities.get("skills")),
-            "companies": _safe_list(entities.get("companies")),
-            "dates": _safe_list(entities.get("dates")),
-            "experience_years": _safe_int(entities.get("experience_years")),
-        }
-    }
 
     return {
-        "status": "ok",
-        "resume": normalized
+        "success": True,
+        "parsed_resume": data.get("result", {}),
+    }
+
+
+# -----------------------------------------
+# ATS scoring
+# -----------------------------------------
+async def score_resume_ats(parsed_resume: dict, use_llm: bool = False) -> Dict[str, Any]:
+    """
+    Calls resume_mcp tool: ats_score
+    """
+    mcp = await get_mcp_client()
+    tools = await mcp.get_tools()
+
+    tool = next((t for t in tools if t.name == "ats_score"), None)
+    if not tool:
+        raise ValueError("ats_score tool not found")
+
+    result = await tool.ainvoke({
+        "parsed_resume": parsed_resume,
+        "use_llm": use_llm,
+    })
+
+    data = _unwrap(result)
+
+    if data.get("status") != "ok":
+        return {
+            "success": False,
+            "error": data.get("message") or "ats_score failed",
+            "raw": data,
+        }
+
+    return {
+        "success": True,
+        "score_result": data.get("result", {}),
     }
