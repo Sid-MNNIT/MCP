@@ -32,11 +32,14 @@ import agentRoutes from "./routes/agent.route.js";
 import internalGoogleRoutes from "./routes/internal_google.route.js";
 import googleSyncRoutes from "./routes/google_sync.route.js";
 import jobsRouter from "./routes/jobs.route.js";
+import calendarRouter from "./routes/calendar.route.js";
+import profileRoutes from "./routes/profile.route.js";
 // --------------------
 // Route mounting
 // --------------------
 app.use("/api/user", userRouter);
-
+app.use("/api/profile", profileRoutes);
+app.use("/api/calendar", calendarRouter);
 // auth = login / register / me
 app.use("/api/auth", userAuthRouter);
 
