@@ -142,6 +142,7 @@ Conversation context:
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_tokens=120,
+        
     )
 
     raw_text = response.choices[0].message.content.strip()
@@ -150,6 +151,10 @@ Conversation context:
     print("\n[LLM RAW RESPONSE]")
     print(raw_text)
 
+    print("\n[CALENDAR EXTRACTION RAW RESPONSE]")
+    print(raw_text)
+
+    # Strip markdown if present
     cleaned = raw_text
     if raw_text.startswith("```"):
         cleaned = raw_text.strip("`").replace("json", "").strip()
@@ -172,3 +177,90 @@ Conversation context:
         "requires_tools": bool(result.get("requires_tools", False)),
         "intent": result.get("intent", "KNOWLEDGE").upper(),
     }
+    
+
+def extract_calendar_details_from_email(subject: str, text: str) -> dict:
+    """
+    Extracts calendar event details from an interview email.
+    Uses LLM to parse unstructured email text into structured calendar data.
+    """
+    
+    prompt = f"""
+You are an AI assistant that extracts calendar event details from interview invitation emails.
+
+Extract the following information from the email:
+1. Company name
+2. Job role/position  
+3. Interview date (format: YYYY-MM-DD)
+4. Interview start time (format: HH:MM in 24-hour format)
+5. Interview end time (format: HH:MM in 24-hour format, estimate 1 hour if not specified)
+6. Meeting link (Google Meet, Zoom, Teams, etc.)
+7. Timezone (default to "Asia/Kolkata" if not specified)
+8. Brief description/summary
+
+Return STRICT JSON only (no markdown, no explanation):
+{{
+  "company": "Company Name",
+  "role": "Job Title",
+  "date": "YYYY-MM-DD",
+  "startTime": "HH:MM",
+  "endTime": "HH:MM",
+  "meetLink": "https://...",
+  "timezone": "Asia/Kolkata",
+  "description": "Brief summary"
+}}
+
+If any field cannot be extracted, use these defaults:
+- role: "Interview"
+- endTime: 1 hour after startTime
+- timezone: "Asia/Kolkata"
+- description: subject line
+- meetLink: "" (empty string if not found)
+
+Email Subject:
+{subject}
+
+Email Body:
+{text}
+""".strip()
+
+    client = get_groq_client()
+
+    response = client.chat.completions.create(
+        model=MODEL_ID,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        max_tokens=400,
+    )
+
+    raw_text = response.choices[0].message.content.strip()
+
+    print("\n[CALENDAR EXTRACTION RAW RESPONSE]")
+    print(raw_text)
+
+    # Strip markdown if present
+    cleaned = raw_text
+    if raw_text.startswith("```"):
+        cleaned = raw_text.strip("`").replace("json", "").strip()
+
+    try:
+        result = json.loads(cleaned)
+    except Exception as e:
+        print("[CALENDAR EXTRACTION PARSE ERROR]", e)
+        raise ValueError(f"Failed to parse LLM response: {e}")
+
+    print("[CALENDAR EXTRACTION PARSED RESULT]", result)
+
+    # Validate required fields
+    required_fields = ["company", "date", "startTime", "endTime"]
+    for field in required_fields:
+        if not result.get(field):
+            raise ValueError(f"Missing required field: {field}")
+
+    # Set defaults for optional fields
+    result.setdefault("role", "Interview")
+    result.setdefault("timezone", "Asia/Kolkata")
+    result.setdefault("description", subject)
+    result.setdefault("meetLink", "")
+
+    return result

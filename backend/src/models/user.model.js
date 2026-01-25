@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     password: {
@@ -19,18 +20,6 @@ const userSchema = new mongoose.Schema(
         return this.provider === "local";
       },
     },
-
-    fullname: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    age: {
-  type: Number,
-  required: false,
-},
-
 
     provider: {
       type: String,
@@ -42,9 +31,98 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
 
+    refreshToken: {
+      type: String,
+    },
+
+    lastLogin: {
+      type: Date,
+    },
+
+    //profile
+
+    fullname: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    age: {
+      type: Number,
+      required: false,
+    },
+
+    about: {
+      type: String,
+      maxlength: 500,
+    },
+
+    phone: {
+      type: String
+    },
+
+    location: {
+      city: String,
+      country: {
+        type: String,
+        default: "India",
+      },
+    },
+
+    openToWork: {
+      type: Boolean,
+      default: false,
+    },
+
+    socials: {
+      github: String,
+      linkedin: String,
+      twitter: String,
+      portfolio: String,
+    },
+
     avatar: {
       type: String,
     },
+
+    headline: {
+      type: String,
+      maxlength: 100,
+    },
+
+    /* -------------------- */
+    /* CAREER PROFILE       */
+    /* -------------------- */
+
+    skills: {
+      type: [String],
+      default: [],
+    },
+
+    experience: [
+      {
+        title: { type: String, required: true },
+        company: { type: String, required: true },
+        startDate: Date,
+        endDate: Date,
+        isCurrent: {
+          type: Boolean,
+          default: false,
+        },
+        description: String,
+      },
+    ],
+
+    education: [
+      {
+        degree: String,
+        fieldOfStudy: String,  // ← NEW
+        institution: String,
+        year: Number,
+      },
+    ],
+
+    // system flags
 
     role: {
       type: String,
@@ -61,29 +139,102 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isGmailConnected:{
-      type:Boolean,
-      default:false
+    isGmailConnected: {
+      type: Boolean,
+      default: false
     },
 
-    refreshToken: {
-      type: String,
+
+    /* -------------------- */
+    /* RESUME DATA          */
+    /* -------------------- */
+
+    // resume: {
+    //   skills: {
+    //     type: [String],
+    //     default: [],
+    //   },
+    //   preferredSkills: {
+    //     type: [String],
+    //     default: [],
+    //   },
+    //   experience: {
+    //     type: Number, // years
+    //     default: 0,
+    //   },
+    //   education: {
+    //     type: [String],
+    //     default: [],
+    //   },
+    //   contact: {
+    //     email: String,
+    //     phone: String,
+    //   },
+    //   uploadedAt: {
+    //     type: Date,
+    //   },
+    // },
+
+    /* -------------------- */
+    /* JOB PREFERENCES      */
+    /* -------------------- */
+
+    jobPreferences: {
+      country: {
+        type: String,
+        default: "in",
+      },
+      city: {
+        type: String,
+      },
+      remoteOnly: {
+        type: Boolean,
+        default: false,
+      },
+      jobTypes: {
+        type: [String], // full-time, part-time, contract
+        default: [],
+      },
+      minSalary: {
+        type: Number,
+      },
+      maxSalary: {
+        type: Number,
+      },
     },
 
-    lastLogin: {
-      type: Date,
-    },
+    /* -------------------- */
+    /* SAVED JOBS           */
+    /* -------------------- */
+
+    savedJobs: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        title: String,
+        company: String,
+        location: String,
+        url: String,
+        matchScore: Number,
+        savedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) {
-    return ;
+    return;
   }
 
   this.password = await bcrypt.hash(this.password, 10);
-  
+
 });
 
 

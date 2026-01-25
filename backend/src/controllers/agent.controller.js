@@ -3,25 +3,34 @@ import fetch from "node-fetch"
 
 export async function executeAgentTool(req, res) {
   try {
-    const userId = req.user._id;          // 🔥 USER RESOLVED HERE
     const { tool, args } = req.body;
+    const userId = req.user._id;
 
     if (!tool) {
       return res.status(400).json({ error: "tool is required" });
     }
 
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
     const result = await callMCP({
       tool,
-      args: args || {},
-      userId
+      args,
+      userId,
+      jwt
     });
 
     return res.json(result);
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Agent execution failed" });
+    console.error("❌ executeAgentTool failed:", err.message);
+    return res.status(500).json({
+      error: "Agent execution failed",
+      details: err.message
+    });
   }
 }
+
 
 export async function emailReplyPreview(req, res) {
   try {
@@ -137,30 +146,18 @@ export async function emailSync(req, res) {
       return res.status(401).json({ error: "JWT missing" });
     }
 
-    const response = await fetch(
-      "http://localhost:9000/pipelines/email-sync",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Service-Key": process.env.SERVICE_KEY,
-          "Authorization": `Bearer ${jwt}`
-        },
-        body: JSON.stringify({
-          userId: req.user._id
-        })
-      }
-    );
+    const result = await callMCP({
+      endpoint: "/pipelines/email-sync",
+      userId: req.user._id,
+      jwt
+    });
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const data = await response.json();
-    return res.json(data);
-
+    return res.json(result);
   } catch (err) {
-    console.error("❌ emailSync failed:", err);
-    res.status(500).json({ error: "Email sync failed" });
+    console.error("❌ emailSync failed:", err.message);
+    return res.status(500).json({
+      error: "Email sync failed",
+      details: err.message
+    });
   }
 }

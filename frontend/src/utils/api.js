@@ -57,6 +57,86 @@ export const googleLogin = async (idToken) => {
   return res.json();
 };
 
+/* ===================================================== */
+/* Jobs APIs                                             */
+/* ===================================================== */
+
+/**
+ * Search jobs
+ */
+export const searchJobs = async (filters) => {
+  const query = new URLSearchParams(filters).toString();
+
+  const res = await fetch(`${BASE_URL}/jobs/search?${query}`, {
+    credentials: "include",
+  });
+
+  return res.json();
+};
+
+/**
+ * Get job categories
+ */
+export const getJobCategories = async (country = "in") => {
+  const res = await fetch(
+    `${BASE_URL}/jobs/categories?country=${country}`,
+    {
+      credentials: "include",
+    }
+  );
+
+  return res.json();
+};
+
+/**
+ * Get recommended jobs (requires login)
+ */
+export const getRecommendedJobs = async () => {
+  const res = await fetch(`${BASE_URL}/jobs/recommended`, {
+    credentials: "include",
+  });
+
+  return res.json();
+};
+
+/**
+ * Save a job
+ */
+export const saveJob = async (job) => {
+  const res = await fetch(`${BASE_URL}/jobs/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(job),
+  });
+
+  return res.json();
+};
+
+/**
+ * Get saved jobs
+ */
+export const getSavedJobs = async () => {
+  const res = await fetch(`${BASE_URL}/jobs/saved`, {
+    credentials: "include",
+  });
+
+  return res.json();
+};
+
+/**
+ * Unsave a job
+ */
+export const unsaveJob = async (jobId) => {
+  const res = await fetch(`${BASE_URL}/jobs/saved/${jobId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  return res.json();
+}
 export const startGmailSync = () => {
 
   window.location.href = "http://localhost:5000/sync/google/gmail";
@@ -155,3 +235,160 @@ export const syncEmails = async () => {
 };
 
 
+//profile apis
+//Get logged-in user's profile
+export const getMyProfile = async () => {
+  const res = await fetch(`${BASE_URL}/profile/me`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch profile");
+  }
+
+  const data = await res.json();
+  return data.profile;
+};
+
+// Update logged-in user's profile
+export const updateMyProfile = async (payload) => {
+  const res = await fetch(`${BASE_URL}/profile/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to update profile");
+  }
+
+  const data = await res.json();
+  return data.profile;
+};
+
+//skills
+export const updateSkills = async (skills) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/skills`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ skills }),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to update skills");
+  return res.json();
+};
+
+//experience
+export const addExperience = async (data) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/experience`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to add experience");
+  return res.json();
+};
+
+export const updateExperience = async (id, data) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/experience/${id}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to update experience");
+  return res.json();
+};
+
+export const deleteExperience = async (id) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/experience/${id}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to delete experience");
+  return res.json();
+};
+//education
+export const addEducation = async (data) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/education`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to add education");
+  return res.json();
+};
+
+export const updateEducation = async (id, data) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/education/${id}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to update education");
+  return res.json();
+};
+
+export const deleteEducation = async (id) => {
+  const res = await fetch(
+    `${BASE_URL}/profile/me/education/${id}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to delete education");
+  return res.json();
+};
+
+// Change password
+export const changePassword = async (currentPassword, newPassword) => {
+  const res = await fetch(`${BASE_URL}/profile/me/change-password`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || "Failed to change password");
+  }
+
+  return res.json();
+};
