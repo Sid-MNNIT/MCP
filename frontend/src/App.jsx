@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile"; // 1. Import the new page
 import Auth from "./pages/Auth";
 import Email from "./pages/Emails";
+import Resume from "./pages/Resume";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import Job from "./pages/Jobs"
 
@@ -43,6 +44,14 @@ function App() {
         element={
           <ProtectedRoute>
             <Job />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/resume" 
+        element={
+          <ProtectedRoute>
+            <Resume />
           </ProtectedRoute>
         }
       />
