@@ -35,13 +35,19 @@ async def search_jobs_pipeline(
         # Step 1: Search jobs via MCP
         print(f"🔍 Searching jobs: keywords='{keywords}', location='{location}', country='{country}'")
         
-        search_result = await search_jobs(
-            keywords=keywords,
-            country=country,
-            where=location,
-            max_results=max_results,
-            page=page,
-        )
+        try:
+            search_result = await search_jobs(
+                keywords=keywords,
+                country=country,
+                where=location,
+                max_results=max_results,
+                page=page,
+            )
+        except Exception as search_error:
+            print(f"❌ Search jobs wrapper error: {type(search_error).__name__}: {search_error}")
+            import traceback
+            traceback.print_exc()
+            raise
         
         if not search_result.success:
             return {
