@@ -28,7 +28,6 @@ app.use(express.static("public"));
 import userRouter from "./routes/user.route.js";
 import userAuthRouter from "./routes/google_auth.route.js"
 import emailRoutes from "./routes/email.route.js";
-import agentRoutes from "./routes/agent.route.js";
 import internalGoogleRoutes from "./routes/internal_google.route.js";
 import googleSyncRoutes from "./routes/google_sync.route.js";
 import jobsRouter from "./routes/jobs.route.js";
@@ -48,8 +47,7 @@ app.use("/api/jobs", jobsRouter);
 // emails CRUD
 app.use("/api/emails", emailRoutes);
 
-// backend → orchestrator
-app.use("/api/agent", agentRoutes);
+
 
 // 🔐 INTERNAL SERVICE ROUTES (VERY IMPORTANT)
 app.use("/internal/google", internalGoogleRoutes);

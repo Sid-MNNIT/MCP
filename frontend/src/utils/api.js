@@ -159,7 +159,7 @@ export const getEmails= async()=>{
 
 
 export const generateAiReplyPreview = async ({ messageId, tone }) => {
-  const res = await fetch(`${BASE_URL}/agent/email-reply-preview`, {
+  const res = await fetch(`${BASE_URL}/emails/email-reply-preview`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -199,7 +199,7 @@ export const generateAiReplyPreview = async ({ messageId, tone }) => {
 
 
 export const sendAiReply = async (draft) => {
-  const res = await fetch(`${BASE_URL}/agent/email-reply-send`, {
+  const res = await fetch(`${BASE_URL}/emails/email-reply-send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -218,7 +218,7 @@ export const sendAiReply = async (draft) => {
 
 
 export const syncEmails = async () => {
-  const res = await fetch(`${BASE_URL}/agent/email-sync`, {
+  const res = await fetch(`${BASE_URL}/emails/email-sync`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
