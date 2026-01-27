@@ -1,76 +1,123 @@
-# client/orchestrator/entrypoint.py
-
 from typing import Optional, Dict, Any
 
 from client.ask_jobsy.planner import planner_decide
-from client.ask_jobsy.rag import run_rag
-from client.ask_jobsy.executor import run_tool
+from client.ask_jobsy.executor import run_pipeline
 from client.ask_jobsy.memory import (
     get_conversation_context,
-    save_conversation_turn
+    save_conversation_turn,
 )
-#from client.as.responder import generate_final_response
+from client.ask_jobsy.registry.pipeline_registry import PIPELINE_REGISTRY
 
+
+# -------------------------------------------------
+# Executor Validator
+# -------------------------------------------------
+
+def validate_execution(plan: Dict[str, Any]) -> None:
+    """
+    Hard validation before executing any pipeline.
+    Raises ValueError if execution is unsafe.
+    """
+
+    if plan["type"] != "ACTION":
+        raise ValueError("Execution attempted for non-ACTION plan")
+
+    pipeline = plan.get("pipeline")
+    if pipeline not in PIPELINE_REGISTRY:
+        raise ValueError(f"Unknown pipeline: {pipeline}")
+
+    cfg = PIPELINE_REGISTRY[pipeline]
+
+    # Ensure required args are present
+    missing = plan.get("missing", [])
+    if missing:
+        raise ValueError(
+            f"Missing required arguments for '{pipeline}': {missing}"
+        )
+
+    # Confirmation guard
+    if cfg.get("requires_confirmation") and not plan.get("confirmed", False):
+        raise ValueError("Pipeline requires explicit confirmation")
+
+    # Risk guard (future-proof)
+    if cfg["risk"] == "HIGH":
+        raise ValueError("High-risk pipeline blocked without approval")
+
+
+# -------------------------------------------------
+# Main Entrypoint
+# -------------------------------------------------
 
 async def handle_user_message(
     jwt: str,
     user_message: str,
     conversation_id: Optional[str],
-    metadata: Dict[str, Any],
-):
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
     Core brain of Ask Jobsy.
+    Planner → Validator → Executor → Memory
     """
 
+    metadata = metadata or {}
 
+    # -----------------------------
+    # 1. Load conversation context
+    # -----------------------------
     conversation_context = get_conversation_context(conversation_id)
 
+    # -----------------------------
+    # 2. Planner
+    # -----------------------------
     plan = await planner_decide(
         user_message=user_message,
         conversation_context=conversation_context,
         metadata=metadata,
     )
-   
 
-    """
-    plan example:
-    {
-        "intent": "KNOWLEDGE | ACTION | BOTH",
-        "requires_rag": true,
-        "requires_tools": false,
-        "tool_name": null,
-        "rag_collections": ["dbt_metadata"],
-        "confidence": 0.91
-    }
-    """
-
-    rag_context = None
-    if plan["requires_rag"]:
-        rag_context = await run_rag(
-            query=user_message,
-            collections=plan.get("rag_collections", []),
+    # -----------------------------
+    # 3. CHAT intent (no execution)
+    # -----------------------------
+    if plan["type"] == "CHAT":
+        save_conversation_turn(
+            conversation_id=conversation_id,
+            user_message=user_message,
+            assistant_message=plan["reasoning"],
         )
 
-    # -----------------------------
-    # 4. MCP / Tool Execution
-    # -----------------------------
-    tool_result = None
-    if plan["requires_tools"]:
-        tool_result = await run_tool(
-            tool_name=plan["tool_name"],
-            metadata=metadata,
-            jwt=jwt,
-        )
+        return {
+            "response": plan["reasoning"],
+            "conversation_id": conversation_id,
+            "metadata": {"plan": plan},
+        }
 
     # -----------------------------
-    # 5. Final Response LLM
+    # 4. ACTION intent
     # -----------------------------
-    final_response = await generate_final_response(
-        user_message=user_message,
-        conversation_context=conversation_context,
-        rag_context=rag_context,
-        tool_result=tool_result,
-        plan=plan,
+    try:
+        validate_execution(plan)
+    except ValueError as e:
+        # Soft failure → ask follow-up instead of crashing
+        save_conversation_turn(
+            conversation_id=conversation_id,
+            user_message=user_message,
+            assistant_message=str(e),
+        )
+
+        return {
+            "response": str(e),
+            "conversation_id": conversation_id,
+            "metadata": {"plan": plan},
+        }
+
+    # -----------------------------
+    # 5. Execute pipeline
+    # -----------------------------
+    result = await run_pipeline(
+        pipeline_name=plan["pipeline"],
+        args=plan["args"],
+        jwt=jwt,
+        metadata=metadata,
     )
 
     # -----------------------------
@@ -79,13 +126,14 @@ async def handle_user_message(
     save_conversation_turn(
         conversation_id=conversation_id,
         user_message=user_message,
-        assistant_message=final_response,
+        assistant_message=str(result),
     )
 
+    # -----------------------------
+    # 7. Final response
+    # -----------------------------
     return {
-        "response": final_response,
+        "response": result,
         "conversation_id": conversation_id,
-        "metadata": {
-            "plan": plan,
-        },
+        "metadata": {"plan": plan},
     }

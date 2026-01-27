@@ -6,7 +6,7 @@ def fetch_recent_messages(service,lookback_days=7, max_results=50):
 
     after_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y/%m/%d")
 
-    query = f"after:{after_date}"
+    query = f"in:inbox after:{after_date}"
     # google quert requires in this form
 
     response = service.users().messages().list(

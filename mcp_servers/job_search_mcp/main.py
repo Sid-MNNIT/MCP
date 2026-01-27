@@ -5,8 +5,8 @@ import re
 import time
 from typing import List, Dict
 from dotenv import load_dotenv
-
 load_dotenv()
+
 
 mcp = FastMCP("job-search-mcp")
 

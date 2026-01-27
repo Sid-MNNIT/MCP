@@ -1,13 +1,29 @@
 from client.ask_jobsy.memory import (
-    save_conversation_turn,
     get_conversation_context,
+    save_conversation_turn,
 )
 
-save_conversation_turn(
-    conversation_id="12345",
-    user_message="Hey when is my interview",
-    assistant_message="It is on Sunday",
-)
+def test_memory():
+    conversation_id = "test-convo-2"
 
-context = get_conversation_context("12345")
-print(context)
+    save_conversation_turn(
+        conversation_id,
+        user_message="Hi Jobsy",
+        assistant_message="Hello! How can I help you?"
+    )
+
+    save_conversation_turn(
+        conversation_id,
+        user_message="Find me Python jobs",
+        assistant_message="Sure, looking for Python roles."
+    )
+
+    context = get_conversation_context(conversation_id)
+
+    print("🧠 Conversation context:")
+    for turn in context:
+        print(turn)
+
+
+if __name__ == "__main__":
+    test_memory()
