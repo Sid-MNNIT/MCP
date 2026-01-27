@@ -6,8 +6,12 @@ import App from "./App";
 import "./index.css";
 import "./styles/theme.css";
 
-document.documentElement.setAttribute("data-theme", "light");
-localStorage.setItem("jobsy-theme", "light");
+// Initialize theme from localStorage or default to light
+const savedTheme = localStorage.getItem("jobsy-theme") || "light";
+document.documentElement.setAttribute("data-theme", savedTheme);
+if (!localStorage.getItem("jobsy-theme")) {
+  localStorage.setItem("jobsy-theme", "light");
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
