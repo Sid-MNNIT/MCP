@@ -10,6 +10,8 @@ const JobFeed = ({
   savedJobIds,
   onSaveJob,
   onUnsaveJob,
+  sortBy,        // New Prop
+  onSortChange   // New Prop
 }) => {
   return (
     <div className="jobs-feed-col">
@@ -28,6 +30,29 @@ const JobFeed = ({
         </div>
 
         <div className="feed-actions">
+          
+          {/* Sort Dropdown (Moved from Sidebar) */}
+          <select 
+            className="job-select sort-select-feed"
+            value={sortBy} 
+            onChange={(e) => onSortChange(e.target.value)}
+            style={{ 
+              width: 'auto', 
+              padding: '8px 12px', 
+              fontSize: '13px',
+              height: '38px',
+              borderRadius: '10px',
+              borderColor: 'var(--border-color)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="relevance">Relevance</option>
+            <option value="date">Date (Newest)</option>
+            <option value="salary">Salary (High to Low)</option>
+          </select>
+
           {/* Mobile Filter Trigger */}
           <button
             className="btn-filter-trigger"

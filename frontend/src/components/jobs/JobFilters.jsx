@@ -129,21 +129,6 @@ const JobFilters = ({
         </div>
       </div>
 
-      {/* Sort By */}
-      <div className="filter-group">
-        <label className="filter-label">Sort By</label>
-        <select
-          className="job-select"
-          value={sortBy}
-          onChange={(e) =>
-            onFilterChange("sortBy", e.target.value)
-          }
-        >
-          <option value="relevance">Relevance</option>
-          <option value="date">Date (Newest)</option>
-          <option value="salary">Salary (High to Low)</option>
-        </select>
-      </div>
 
       {/* Apply Button */}
       <button
