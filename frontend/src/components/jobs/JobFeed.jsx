@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import JobCard from "./JobCard";
 
 const JobFeed = ({
@@ -11,6 +11,27 @@ const JobFeed = ({
   onSaveJob,
   onUnsaveJob,
 }) => {
+  // ============================================
+  // NEW: Check if jobs have match scores
+  // ============================================
+  const hasMatchScores = useMemo(() => {
+    return jobs.some(job => job.match_score || job.matchScore);
+  }, [jobs]);
+
+  // ============================================
+  // NEW: Sort jobs by match score if available
+  // ============================================
+  const sortedJobs = useMemo(() => {
+    if (hasMatchScores) {
+      return [...jobs].sort((a, b) => {
+        const scoreA = a.match_score || a.matchScore || 0;
+        const scoreB = b.match_score || b.matchScore || 0;
+        return scoreB - scoreA;
+      });
+    }
+    return jobs;
+  }, [jobs, hasMatchScores]);
+
   return (
     <div className="jobs-feed-col">
       {/* Header */}
@@ -22,6 +43,10 @@ const JobFeed = ({
             ) : (
               <>
                 Showing <span>{jobs.length}</span> job{jobs.length !== 1 ? 's' : ''}
+                {/* NEW: Show recommendation indicator */}
+                {hasMatchScores && (
+                  <span className="recommendation-indicator">🎯 Personalized</span>
+                )}
               </>
             )}
           </div>
@@ -58,8 +83,8 @@ const JobFeed = ({
             <h3>Loading jobs...</h3>
             <p>Please wait while we search for the best opportunities</p>
           </div>
-        ) : jobs.length > 0 ? (
-          jobs.map((job) => (
+        ) : sortedJobs.length > 0 ? (
+          sortedJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}

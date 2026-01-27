@@ -40,14 +40,59 @@ const JobCard = ({ job, isSelected, isSaved, onClick, onSave, onUnsave }) => {
 
   const postedText = formatDate(job.created);
 
-  // Match score badge
-  const showMatchScore = job.match_score && job.match_score > 0;
+  // ============================================
+  // HYBRID RECOMMENDATION FEATURES
+  // ============================================
+
+  // Match score - support both snake_case and camelCase
+  const matchScore = job.match_score || job.matchScore;
+  const matchReason = job.match_reason || job.matchReason;
+  const matchedSkills = job.matched_skills || job.matchedSkills || [];
+  
+  const showMatchScore = matchScore && matchScore > 0;
+
+  // Get match quality badge style based on score
+  const getMatchBadgeStyle = (score) => {
+    if (score >= 80) {
+      return {
+        background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
+        color: "#166534",
+        border: "1px solid #86efac",
+        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.2)"
+      };
+    }
+    if (score >= 60) {
+      return {
+        background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+        color: "#92400e",
+        border: "1px solid #fcd34d",
+        boxShadow: "0 2px 8px rgba(245, 158, 11, 0.2)"
+      };
+    }
+    return {
+      background: "linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)",
+      color: "#374151",
+      border: "1px solid #9ca3af",
+      boxShadow: "0 2px 8px rgba(107, 114, 128, 0.2)"
+    };
+  };
 
   return (
     <div
       className={`job-card ${isSelected ? "job-card-selected" : ""}`}
       onClick={onClick}
     >
+      {/* Match Score Badge - Top Right Corner */}
+      {showMatchScore && (
+        <div 
+          className="match-score-badge" 
+          style={getMatchBadgeStyle(matchScore)}
+        >
+          <div className="match-percentage">{matchScore}%</div>
+          <div className="match-label">Match</div>
+        </div>
+      )}
+
       {/* Company Logo */}
       <div className="company-logo">{companyInitial}</div>
 
@@ -61,6 +106,31 @@ const JobCard = ({ job, isSelected, isSaved, onClick, onSave, onUnsave }) => {
           {job.location}
         </div>
 
+        {/* Match Reason - AI Generated Explanation */}
+        {matchReason && (
+          <div className="match-reason">
+            <span className="match-icon">✨</span>
+            <span className="match-text">{matchReason}</span>
+          </div>
+        )}
+
+        {/* Matched Skills Tags */}
+        {matchedSkills.length > 0 && (
+          <div className="matched-skills">
+            {matchedSkills.slice(0, 3).map((skill, idx) => (
+              <span key={idx} className="skill-tag">
+                {skill}
+              </span>
+            ))}
+            {matchedSkills.length > 3 && (
+              <span className="skill-tag skill-tag-more">
+                +{matchedSkills.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Job Metadata Badges */}
         <div className="job-badges">
           <span className="badge badge-salary">{salaryText}</span>
 
@@ -75,22 +145,10 @@ const JobCard = ({ job, isSelected, isSaved, onClick, onSave, onUnsave }) => {
               {job.contract_time}
             </span>
           )}
-
-          {showMatchScore && (
-            <span
-              className="badge badge-match"
-              style={{
-                background: job.match_score >= 7 ? "#dcfce7" : "#fef3c7",
-                color: job.match_score >= 7 ? "#166534" : "#92400e",
-              }}
-            >
-              {job.match_score}% Match
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Meta */}
+      {/* Card Footer Meta */}
       <div className="job-card-meta">
         {/* Save/Unsave Button */}
         <button

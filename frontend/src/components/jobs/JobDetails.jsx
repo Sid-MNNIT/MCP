@@ -1,6 +1,13 @@
 import React from "react";
 
-const JobDetails = ({ job, isVisible, onClose, isSaved, onSaveJob, onUnsaveJob }) => {
+const JobDetails = ({
+  job,
+  isVisible,
+  onClose,
+  isSaved,
+  onSaveJob,
+  onUnsaveJob,
+}) => {
   if (!job) {
     return (
       <div className={`job-details-panel ${isVisible ? "visible" : ""}`}>
@@ -11,7 +18,9 @@ const JobDetails = ({ job, isVisible, onClose, isSaved, onSaveJob, onUnsaveJob }
     );
   }
 
-  // Format salary
+  // =========================
+  // Salary Formatting
+  // =========================
   const formatSalary = (amount) => {
     if (!amount) return null;
     if (amount >= 100000) {
@@ -22,30 +31,45 @@ const JobDetails = ({ job, isVisible, onClose, isSaved, onSaveJob, onUnsaveJob }
 
   const salaryRange =
     job.salary_min || job.salary_max
-      ? `${formatSalary(job.salary_min) || "Not disclosed"} - ${formatSalary(job.salary_max) || "Not disclosed"}`
+      ? `${formatSalary(job.salary_min) || "Not disclosed"} - ${
+          formatSalary(job.salary_max) || "Not disclosed"
+        }`
       : "Not disclosed";
 
-  // Clean and format description
+  // =========================
+  // Description Cleaning
+  // =========================
   const cleanDescription = (html) => {
     if (!html) return "No description available";
-    
-    // Remove HTML tags
+
     const text = html.replace(/<[^>]*>/g, " ");
-    
-    // Decode HTML entities
     const textarea = document.createElement("textarea");
     textarea.innerHTML = text;
-    const decoded = textarea.value;
-    
-    // Clean up whitespace
-    return decoded.replace(/\s+/g, " ").trim();
+
+    return textarea.value.replace(/\s+/g, " ").trim();
   };
 
   const description = cleanDescription(job.description);
 
+  // =========================
+  // Match / Recommendation
+  // =========================
+  const matchScore = job.match_score || job.matchScore;
+  const matchReason = job.match_reason || job.matchReason;
+  const matchedSkills = job.matched_skills || job.matchedSkills || [];
+
+  const getMatchQuality = (score) => {
+    if (!score) return null;
+    if (score >= 80) return { label: "Excellent Match", color: "#10b981" };
+    if (score >= 60) return { label: "Good Match", color: "#f59e0b" };
+    return { label: "Potential Match", color: "#6b7280" };
+  };
+
+  const matchQuality = getMatchQuality(matchScore);
+
   return (
     <div className={`job-details-panel ${isVisible ? "visible" : ""}`}>
-      {/* Mobile Close Button */}
+      {/* Close Button (Mobile) */}
       <button className="btn-close-details" onClick={onClose}>
         ✕
       </button>
@@ -63,33 +87,83 @@ const JobDetails = ({ job, isVisible, onClose, isSaved, onSaveJob, onUnsaveJob }
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="job-details-actions">
           <button
-            className={`btn-save-large ${isSaved ? "btn-save-active" : ""}`}
-            onClick={() => {
-              if (isSaved) {
-                onUnsaveJob(job.id);
-              } else {
-                onSaveJob(job);
-              }
-            }}
+            className={`btn-save-large ${
+              isSaved ? "btn-save-active" : ""
+            }`}
+            onClick={() =>
+              isSaved ? onUnsaveJob(job.id) : onSaveJob(job)
+            }
           >
             {isSaved ? "❤️ Saved" : "♡ Save Job"}
           </button>
 
-          <a
-            href={job.apply_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-apply"
-          >
-            Apply Now →
-          </a>
+          {job.apply_url && (
+            <a
+              href={job.apply_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-apply"
+            >
+              Apply Now →
+            </a>
+          )}
         </div>
       </div>
 
-      {/* Job Info Grid */}
+      {/* ========================= */}
+      {/* Match Score Card */}
+      {/* ========================= */}
+      {(matchScore || matchReason || matchedSkills.length > 0) && (
+        <div
+          className="match-score-card"
+          style={{ borderColor: matchQuality?.color || "#e5e7eb" }}
+        >
+          {matchScore && matchQuality && (
+            <div className="match-score-display">
+              <div
+                className="match-score-large"
+                style={{ color: matchQuality.color }}
+              >
+                {matchScore}%
+              </div>
+              <div
+                className="match-quality-label"
+                style={{ color: matchQuality.color }}
+              >
+                {matchQuality.label}
+              </div>
+            </div>
+          )}
+
+          {matchReason && (
+            <div className="match-explanation">
+              <div className="explanation-icon">✨</div>
+              <div>
+                <strong>Why this matches:</strong>
+                <p>{matchReason}</p>
+              </div>
+            </div>
+          )}
+
+          {matchedSkills.length > 0 && (
+            <div className="matched-skills-section">
+              <strong>Your matching skills:</strong>
+              <div className="skill-tags-large">
+                {matchedSkills.map((skill, idx) => (
+                  <span key={idx} className="skill-tag-large">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Job Info */}
       <div className="job-info-grid">
         <div className="job-info-item">
           <span className="job-info-label">Salary Range</span>
@@ -116,32 +190,13 @@ const JobDetails = ({ job, isVisible, onClose, isSaved, onSaveJob, onUnsaveJob }
             <span className="job-info-value">{job.category}</span>
           </div>
         )}
-
-        {job.match_score && (
-          <div className="job-info-item">
-            <span className="job-info-label">Match Score</span>
-            <span className="job-info-value">
-              <span
-                style={{
-                  padding: "4px 12px",
-                  borderRadius: "6px",
-                  background: job.match_score >= 70 ? "#dcfce7" : "#fef3c7",
-                  color: job.match_score >= 70 ? "#166534" : "#92400e",
-                  fontWeight: "600",
-                }}
-              >
-                {job.match_score}%
-              </span>
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Description */}
       <div className="job-description-section">
         <h3 className="section-title">Job Description</h3>
         <div className="job-description-content">
-          {description.split('\n\n').map((paragraph, index) => (
+          {description.split("\n\n").map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
         </div>

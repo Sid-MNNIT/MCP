@@ -14,12 +14,12 @@ export async function callMCP({ tool, args, userId, endpoint, jwt }) {
 
   // Determine URL and body format based on mode
   const url = endpoint 
-    ? `${ORCHESTRATOR_URL}${endpoint}`           // Pipeline mode
-    : `${ORCHESTRATOR_URL}/agent/execute`;       // Legacy mode
+    ? `${ORCHESTRATOR_URL}${endpoint}`           
+    : `${ORCHESTRATOR_URL}/agent/execute`;      
   
   const body = endpoint 
-    ? { ...args, userId }                         // Pipeline format
-    : { tool, userId, args: { ...args, userId } }; // Legacy format
+    ? { ...args, userId }                         
+    : { tool, userId, args: { ...args, userId } }; 
 
   console.log(`🔄 Calling MCP: ${endpoint || `/agent/execute (tool: ${tool})`}`);
 

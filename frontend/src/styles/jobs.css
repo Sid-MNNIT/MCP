@@ -305,6 +305,7 @@
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -929,5 +930,330 @@
   .badge {
     font-size: 11px;
     padding: 4px 10px;
+  }
+}
+
+/*recommended section*/
+/* Match Score Badge */
+ .match-score-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 12px;
+  padding: 8px 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.match-percentage {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.match-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* Match Reason */
+ .match-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: #f0fdf4;
+  border-left: 3px solid #10b981;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #065f46;
+  line-height: 1.5;
+}
+
+.match-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+*/
+/* Matched Skills */
+
+.matched-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.skill-tag {
+  padding: 4px 10px;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Score color variations */
+
+.match-score-badge.high-match {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.match-score-badge.medium-match {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.match-score-badge.low-match {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+} 
+
+/* ============================================ */
+/* HYBRID RECOMMENDATION FEATURES - ADDITIONS */
+/* ============================================ */
+
+/* Match Score Card in Job Details */
+.match-score-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.match-score-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.match-score-large {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.match-quality-label {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.match-explanation {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.explanation-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.match-explanation strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+
+.match-explanation p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #047857;
+  margin: 0;
+}
+
+.matched-skills-section {
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.matched-skills-section strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 12px;
+}
+
+.skill-tags-large {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-tag-large {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: capitalize;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Recommendation Indicator in Feed */
+.recommendation-indicator {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid #fcd34d;
+}
+
+/* Match Reason in JobCard */
+.match-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f0fdf4;
+  border-left: 3px solid #10b981;
+  border-radius: 6px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.match-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.match-text {
+  font-size: 13px;
+  color: #065f46;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* JobCard Match Badge - Enhanced */
+.job-card {
+  position: relative;
+}
+
+.match-score-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border-radius: 10px;
+  padding: 6px 10px;
+  text-align: center;
+  z-index: 10;
+  min-width: 60px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.match-percentage {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.match-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.job-card-selected .match-score-badge {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transform: scale(1.05);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+  .match-score-card {
+    padding: 20px;
+  }
+
+  .match-score-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .match-score-large {
+    font-size: 36px;
+  }
+
+  .match-quality-label {
+    font-size: 14px;
+  }
+
+  .match-explanation {
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .skill-tag-large {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .recommendation-indicator {
+    display: block;
+    margin-left: 0;
+    margin-top: 6px;
+    width: fit-content;
+  }
+
+  .match-score-badge {
+    top: 10px;
+    right: 10px;
+    padding: 5px 8px;
+    min-width: 50px;
+  }
+
+  .match-percentage {
+    font-size: 16px;
+  }
+
+  .match-label {
+    font-size: 8px;
   }
 }
