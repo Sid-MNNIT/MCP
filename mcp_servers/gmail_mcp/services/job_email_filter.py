@@ -1,5 +1,3 @@
-# services/job_email_filter.py
-
 # -----------------------------
 # HARD BLOCKED DOMAINS
 # -----------------------------
@@ -46,25 +44,33 @@ TRUSTED_DOMAINS = [
 # GENERIC JOB KEYWORDS
 # -----------------------------
 JOB_KEYWORDS = [
-    "interview",
     "job",
+    "role",
+    "position",
+    "opening",
+
+    "interview",
     "hiring",
+    "recruiter",
+    "recruitment",
+
     "application",
     "applied",
     "shortlisted",
     "shortlist",
-    "recruiter",
-    "recruitment",
+
     "offer",
     "offer letter",
     "joining",
     "onboarding",
+
     "assessment",
     "coding test",
     "technical round",
     "hr round",
     "assignment",
     "challenge",
+
     "intern",
     "internship",
 ]
@@ -77,15 +83,24 @@ INTENT_PHRASES = [
     "thank you for applying",
     "we received your application",
     "application received",
+
     "interview scheduled",
     "invite you to interview",
     "interview invitation",
+
     "shortlisted",
     "offer letter",
     "we are pleased to offer",
+
     "we regret to inform",
     "not selected",
     "unfortunately",
+
+    # 🔑 Subtle rejection phrases
+    "decided to move forward with candidates",
+    "move forward with other candidates",
+    "not moving forward",
+    "profile does not align",
 ]
 
 # -----------------------------
@@ -105,15 +120,15 @@ def compute_job_score(email: dict) -> int:
 
     text = f"{subject} {body}"
 
-
+    # Strong intent phrases → high confidence
     if any(phrase in text for phrase in INTENT_PHRASES):
         score += 4
 
-
+    # Trusted recruiter / company domain
     if any(domain in sender for domain in TRUSTED_DOMAINS):
         score += 3
 
-   
+    # Generic job keywords
     if any(keyword in text for keyword in JOB_KEYWORDS):
         score += 2
 
@@ -123,14 +138,15 @@ def compute_job_score(email: dict) -> int:
 # -----------------------------
 # FINAL DECISION FUNCTION
 # -----------------------------
-def is_job_related(email: dict, threshold: int = 4) -> bool:
+def is_job_related(email: dict, threshold: int = 3) -> bool:
     """
-    Decide if an email should be ingested into Jobsy.
-    Uses hard exclusions + weighted intent scoring.
+    Decide if an email should be passed to LLM for validation.
+    This is a FAST, recall-focused filter.
     """
 
     sender = (email.get("from") or "").lower()
 
+    # Hard exclusion first
     if any(domain in sender for domain in BLOCKED_DOMAINS):
         return False
 

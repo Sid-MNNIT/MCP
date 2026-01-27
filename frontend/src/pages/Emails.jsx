@@ -13,7 +13,7 @@ import mapEmailForUI from "../components/emails/EmailMapper.jsx";
 import AiReplyPreviewModal from "../components/emails/AiReplyPreviewModal.jsx"
 import "../styles/dashboard.css";
 import "../styles/email.css";
-import { getEmails,generateAiReplyPreview,sendAiReply } from "../utils/api.js";
+import { getEmails,generateAiReplyPreview,sendAiReply,syncEmails } from "../utils/api.js";
 
 export default function Emails() {
 
@@ -109,19 +109,36 @@ export default function Emails() {
   };
 
 
-  const handleSync = () => {
+const handleSync = async () => {
+  try {
     setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      const now = new Date();
-      setLastSynced(
-        now.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
-    }, 2000);
-  };
+
+    // Call backend → agent → ingest pipeline
+    const result = await syncEmails();
+    console.log("✅ Sync result:", result);
+
+    //  Update last synced time
+    const now = new Date();
+    setLastSynced(
+      now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
+
+    
+    const res = await getEmails();
+    const mapped = (res.emails || []).map(mapEmailForUI);
+    setEmails(mapped);
+
+  } catch (err) {
+    console.error("❌ Sync failed", err);
+    alert("Failed to sync Gmail");
+  } finally {
+    setIsSyncing(false);
+  }
+};
+
 
   // Reply handler
 const handleReply = (email) => {

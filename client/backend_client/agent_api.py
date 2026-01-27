@@ -9,7 +9,7 @@ async def execute_tool(tool: str, args: dict, jwt: str):
 
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(
-            f"{BASE_URL}/api/agent/execute",
+            f"{BASE_URL}/api/emails/execute",
             json={
                 "tool": tool,
                 "args": args

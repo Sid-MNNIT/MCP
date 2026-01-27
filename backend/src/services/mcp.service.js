@@ -1,37 +1,41 @@
-/**
- * Call MCP Orchestrator
- * 
- * Supports two modes:
- * 1. Pipeline mode: { endpoint: "/pipelines/job-search", args: {...}, userId, jwt }
- * 2. Legacy mode: { tool: "search_jobs", args: {...}, userId }
- */
 import fetch from "node-fetch";
 
 const ORCHESTRATOR_URL = "http://localhost:9000";
 
-export async function callMCP({ tool, args, userId, endpoint, jwt }) {
+export async function callMCP({
+  tool,
+  args = {},
+  userId,
+  endpoint,
+  jwt
+}) {
   console.log("SERVICE_KEY:", process.env.SERVICE_KEY);
 
-  // Determine URL and body format based on mode
-  const url = endpoint 
-    ? `${ORCHESTRATOR_URL}${endpoint}`           // Pipeline mode
-    : `${ORCHESTRATOR_URL}/agent/execute`;       // Legacy mode
-  
-  const body = endpoint 
-    ? { ...args, userId }                         // Pipeline format
-    : { tool, userId, args: { ...args, userId } }; // Legacy format
+  const isPipeline = Boolean(endpoint);
 
-  console.log(`🔄 Calling MCP: ${endpoint || `/agent/execute (tool: ${tool})`}`);
+  const url = isPipeline
+    ? `${ORCHESTRATOR_URL}${endpoint}`
+    : `${ORCHESTRATOR_URL}/agent/execute`;
 
-  // Build headers - include JWT if provided
   const headers = {
     "Content-Type": "application/json",
     "X-Service-Key": process.env.SERVICE_KEY
   };
 
   if (jwt) {
-    headers["Authorization"] = `Bearer ${jwt}`;
+    headers.Authorization = `Bearer ${jwt}`;
   }
+
+  const body = isPipeline
+    ? { ...args, userId }
+    : {
+        tool,
+        userId,
+        args: {
+          ...args,
+          userId          // ✅ KEEP mutation for tools
+        }
+      };
 
   const res = await fetch(url, {
     method: "POST",
@@ -40,10 +44,11 @@ export async function callMCP({ tool, args, userId, endpoint, jwt }) {
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error(`❌ MCP Error: ${res.status} - ${errorText}`);
-    throw new Error(errorText || `MCP request failed with status ${res.status}`);
+    const text = await res.text();
+    throw new Error(
+      `MCP ${isPipeline ? "pipeline" : "tool"} failed: ${text}`
+    );
   }
- 
+
   return res.json();
 }

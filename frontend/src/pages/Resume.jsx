@@ -1,9 +1,7 @@
-import { useState } from "react";
-import "../styles/dashboard.css"; 
-import "../styles/resume.css";
-
-import TopHeader from "../components/layout/TopHeader";
+import React, { useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
+import TopHeader from "../components/layout/TopHeader";
+import EditEntityModal from "../components/resume/EditEntityModal";
 
 // Sub-components
 import FilePreview from "../components/resume/FilePreview";
@@ -13,7 +11,10 @@ import ExperienceSummaryCard from "../components/resume/ExperienceSummaryCard";
 import SkillsCloudCard from "../components/resume/SkillsCloudCard";
 import ExtractedMetadataCard from "../components/resume/ExtractedMetadataCard";
 
-// --- MOCK DATA (Matches your Python Extract Output) ---
+import "../styles/dashboard.css";
+import "../styles/resume.css";
+
+// --- MOCK DATA (Initial State) ---
 const initialEntities = {
   personal: {
     name: "Priyangshu Ghosh",
@@ -21,28 +22,52 @@ const initialEntities = {
     phone: "+91 98765 43210",
     linkedin: "linkedin.com/in/priyangshu"
   },
-  summary: "Senior Software Engineer at TechSolutions (2020-Present). Specialized in building scalable backend systems and AI integrations.",
+  // Timeline Data Structure
+  experience_list: [
+    { 
+      role: "Senior Software Engineer", 
+      company: "TechSolutions", 
+      date: "2020 - Present", 
+      desc: "Specialized in building scalable backend systems and AI integrations." 
+    },
+    { 
+      role: "Software Developer", 
+      company: "InnovateInc", 
+      date: "2017 - 2020", 
+      desc: "Developed full-stack web applications using React and Node.js." 
+    }
+  ],
   skills: ["Python", "React.js", "AWS", "Machine Learning", "SQL", "Agile", "FastAPI", "Docker"],
-  roles: ["Senior Software Engineer", "Software Developer"],
-  companies: ["TechSolutions", "InnovateInc"],
-  experience_years: 5
+  experience_years: 5,
+  companies: ["TechSolutions", "InnovateInc"]
 };
 
-export default function ResumePage() {
+export default function Resume() {
+  // 1. Data States
   const [entities, setEntities] = useState(initialEntities);
-  
-  // Score State
-  const [scoreData, setScoreData] = useState(null); 
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [scoreData, setScoreData] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [editModalConfig, setEditModalConfig] = useState(null);
 
-  // --- HANDLERS ---
+  // 2. Handlers
+  const handleFileUpload = (file) => {
+    setUploadedFile(file);
+    setScoreData(null); // Reset score on new file
+  };
+
   const handleCalculate = () => {
+    if (!uploadedFile) {
+      alert("Please upload a resume first!");
+      return;
+    }
+
     setIsCalculating(true);
-    // Simulate Backend API Call
+    
+    // Simulate Backend API Processing
     setTimeout(() => {
       setScoreData({
         total: 85,
-        breakdown: { skills: 40, roles: 20, experience: 20, structure: 5 },
         insights: [
           { type: 'success', text: "Contact Information found and clear" },
           { type: 'warning', text: "Missing some common leadership keywords" },
@@ -51,39 +76,52 @@ export default function ResumePage() {
         ]
       });
       setIsCalculating(false);
-    }, 1500);
+    }, 1800);
   };
 
-  // Generic updater for deep nested state
-  const handlePersonalUpdate = (field, value) => {
+  // --- EDIT MODAL HANDLERS ---
+  const openPersonalEdit = () => {
+    setEditModalConfig({
+      title: "Personal Info",
+      section: "personal",
+      initialData: entities.personal,
+      fields: [
+        { key: "name", label: "Full Name" },
+        { key: "email", label: "Email" },
+        { key: "phone", label: "Phone" },
+        { key: "linkedin", label: "LinkedIn" },
+      ]
+    });
+  };
+
+  const openSummaryEdit = () => {
+    // Note: For timeline edits, you'd typically need a more complex modal.
+    // This is a placeholder for editing the raw text or first item.
+    alert("To edit timeline items, we would open a specific experience modal here (like in Profile).");
+  };
+
+  const handleSaveModal = (newData) => {
     setEntities(prev => ({
       ...prev,
-      personal: { ...prev.personal, [field]: value }
+      [editModalConfig.section]: newData
     }));
-  };
-
-  const handleSummaryUpdate = (newSummary) => {
-    setEntities(prev => ({ ...prev, summary: newSummary }));
+    setEditModalConfig(null);
   };
 
   return (
     <div className="dashboard-shell">
       <Sidebar />
       <main className="dashboard-root">
-        <TopHeader fullName="Priyangshu Ghosh" />
-
-        <div className="resume-page-header">
-          <h1 className="page-heading">Resume Parsing</h1>
-        </div>
-
-        <div className="resume-grid-layout">
+        <TopHeader fullName="Priyangshu Ghosh" title="Resume Parsing" />
+        
+        {/* MAIN LAYOUT CONTAINER */}
+        <div className="resume-container">
           
-          {/* --- LEFT COLUMN --- */}
-          <div className="left-column">
+          {/* --- LEFT COLUMN: File Upload & ATS Score --- */}
+          <div className="resume-left-col">
             <FilePreview 
-              fileName="priyangshu_cv_final.pdf" 
-              fileSize="1.2 MB" 
-              uploadTime="Uploaded just now" 
+              file={uploadedFile} 
+              onFileUpload={handleFileUpload} 
             />
             
             <ATSScoreCard 
@@ -93,29 +131,54 @@ export default function ResumePage() {
             />
           </div>
 
-          {/* --- RIGHT COLUMN --- */}
-          <div className="right-column">
-            <PersonalInfoCard 
-              data={entities.personal} 
-              onUpdate={handlePersonalUpdate} 
-            />
+          {/* --- RIGHT COLUMN: Parsed Data Grid --- */}
+          <div className="resume-right-grid">
+            
+            {/* Cell 1: Personal Info */}
+            <div className="grid-item">
+              <PersonalInfoCard 
+                data={entities.personal} 
+                onEdit={openPersonalEdit} 
+              />
+            </div>
+            
+            {/* Cell 2: Experience Timeline */}
+            <div className="grid-item">
+              <ExperienceSummaryCard 
+                experiences={entities.experience_list} 
+                onEdit={openSummaryEdit} 
+              />
+            </div>
 
-            <ExperienceSummaryCard 
-              summary={entities.summary} 
-              onUpdate={handleSummaryUpdate} 
-            />
+            {/* Cell 3 (Full Width): Skills */}
+            <div className="span-full">
+              <SkillsCloudCard 
+                skills={entities.skills} 
+              />
+            </div>
 
-            <SkillsCloudCard 
-              skills={entities.skills} 
-            />
+            {/* Cell 4 (Full Width): Metadata */}
+            <div className="span-full">
+              <ExtractedMetadataCard 
+                experienceYears={entities.experience_years} 
+                companies={entities.companies} 
+              />
+            </div>
 
-            <ExtractedMetadataCard 
-              experienceYears={entities.experience_years} 
-              companies={entities.companies} 
-            />
           </div>
-
         </div>
+
+        {/* --- GLOBAL EDIT MODAL --- */}
+        {editModalConfig && (
+          <EditEntityModal 
+            title={editModalConfig.title}
+            fields={editModalConfig.fields}
+            initialData={editModalConfig.initialData}
+            onClose={() => setEditModalConfig(null)}
+            onSave={handleSaveModal}
+          />
+        )}
+
       </main>
     </div>
   );

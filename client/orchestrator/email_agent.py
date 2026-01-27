@@ -1,9 +1,9 @@
 from client.backend_client.agent_api import execute_tool
 from client.wrappers.gmail_wrapper import clean_email_body
-from client.orchestrator.context_builder import build_email_prompt
-from client.orchestrator.fake_llm import generate_fake_email_reply
+from client.orchestrator.email_prompt_builder import build_email_prompt
 from client.orchestrator.email_mapper import map_to_backend
 from client.backend_client.email_api import save_email
+from client.llm.llm_service import generate_email_reply
 
 import json
 import asyncio
@@ -43,7 +43,11 @@ async def prepare_email_reply_preview(
     )
 
     prompt = build_email_prompt(reply_context)
-    email_body = generate_fake_email_reply(prompt)
+    email_body = await asyncio.to_thread(
+    generate_email_reply,
+    prompt
+    )  
+
 
     return {
         "draft": {
@@ -113,6 +117,11 @@ async def ingest_and_store_emails(jwt: str):
 
         payload = map_to_backend(email)
 
+        if payload is None:
+            continue
+         
+
+
         # Normalize date
         if hasattr(payload.get("date"), "isoformat"):
             payload["date"] = payload["date"].isoformat()
@@ -132,8 +141,7 @@ async def run_ingest_pipeline():
     Fill JWT manually before running.
     """
 
-    JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTYzZDVjZDdhODg5NTFiNjQ4YTIwYjgiLCJlbWFpbCI6InJpdGlrQGV4YW1wbGUuY29tIiwiZnVsbG5hbWUiOiJSaXR2aWsgUmFpIiwiaWF0IjoxNzY4NDI4MjM0LCJleHAiOjE3Njg1MTQ2MzR9.QBPHFpkgR4SU_DbVQuyVc6vmdvJ-G74UgvL72qipI7I"   # 🔐 <-- PUT YOUR JWT HERE
-
+    JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTY4YWIyZDM2NWI3NDFjMGVhNzBiMjEiLCJlbWFpbCI6Im1haGVzaEBleGFtcGxlLmNvbSIsImZ1bGxuYW1lIjoiTWFoZXNoIiwiaWF0IjoxNzY4NDY3Mjk3LCJleHAiOjE3Njg1NTM2OTd9.CTXHBAMPAlTP-P7lwPH9SHxuiL7xFHur6-0dVIh4O_c"
     if not JWT or JWT == "PASTE_YOUR_JWT_HERE":
         raise RuntimeError("❌ Please set JWT before running ingest pipeline")
 

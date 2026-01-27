@@ -1,9 +1,10 @@
-from client.orchestrator.email_classifier import classify_email
+from client.llm.llm_service import classify_email_semantic
 from datetime import datetime
 
 ALLOWED_TYPES = {
     "JOB", "INTERVIEW", "OFFER", "REJECTION", "OTHER"
 }
+
 
 def map_to_backend(email):
     """
@@ -25,14 +26,17 @@ def map_to_backend(email):
         raise ValueError(f"Missing date for email {email.get('id')}")
 
     # -----------------------------
-    # Classification (SAFE)
+    # Classification (LLM)
     # -----------------------------
-    raw_type = classify_email(
+    result = classify_email_semantic(
         email.get("subject", ""),
         email.get("body", "")
     )
 
-    email_type = raw_type.upper() if raw_type else "OTHER"
+    if not result["is_relevant"]:
+        return None  # ❗ DROP email completely
+
+    email_type = result.get("type", "OTHER").upper()
     if email_type not in ALLOWED_TYPES:
         email_type = "OTHER"
 
@@ -41,15 +45,11 @@ def map_to_backend(email):
     # -----------------------------
     return {
         "emailId": email["id"],
-
         "type": email_type,
-
         "threadId": email["threadId"],
-
         "from": email.get("from", ""),
         "subject": email.get("subject", ""),
         "text": email.get("body", ""),
         "date": date.isoformat(),
-
         "isEmbedded": False
     }

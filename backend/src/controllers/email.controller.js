@@ -1,5 +1,6 @@
 import { Email } from "../models/email.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { emailService } from "../services/email.service.js";
 
 //store emails
 const storeEmail = asyncHandler(async (req, res) => {
@@ -80,6 +81,7 @@ const deleteEmail = asyncHandler(async (req, res) => {
     message: "Email deleted successfully",
   });
 });
+
 const getUserEmail=asyncHandler(async (req,res)=>{
   const emails=await Email.find({userId:req.user._id})
   .sort({date:-1})
@@ -91,9 +93,116 @@ const getUserEmail=asyncHandler(async (req,res)=>{
   })
 })
 
+const executeAgentTool=asyncHandler(async (req, res)=> {
+  try {
+    const { tool, args } = req.body;
+    const userId = req.user._id;
+
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
+    const result = await emailService.executeTool({
+      tool,
+      args,
+      userId,
+      jwt
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ executeAgentTool failed:", err.message);
+    return res.status(500).json({
+      error: "Agent execution failed",
+      details: err.message
+    });
+  }
+}
+)
+
+const  emailReplyPreview=asyncHandler(async (req, res)=> {
+  try {
+    const { messageId, tone = "professional" } = req.body;
+    const userId = req.user._id;
+
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
+    const result = await emailService.previewEmailReply({
+      messageId,
+      tone,
+      userId,
+      jwt
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ emailReplyPreview failed:", err.message);
+    return res.status(500).json({
+      error: "AI reply preview failed",
+      details: err.message
+    });
+  }
+}
+)
+
+const emailReplySend=asyncHandler(async (req, res)=> {
+  try {
+    const userId = req.user._id;
+
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
+    const result = await emailService.sendEmailReply({
+      draft: req.body,
+      userId,
+      jwt
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ emailReplySend failed:", err.message);
+    return res.status(500).json({
+      error: "Failed to send email",
+      details: err.message
+    });
+  }
+}
+)
+
+const emailSync=asyncHandler(async (req, res)=> {
+  try {
+    const userId = req.user._id;
+
+    const jwt =
+      req.headers.authorization?.replace("Bearer ", "") ||
+      req.cookies?.accessToken;
+
+    const result = await emailService.syncEmails({
+      userId,
+      jwt
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("❌ emailSync failed:", err.message);
+    return res.status(500).json({
+      error: "Email sync failed",
+      details: err.message
+    });
+  }
+}
+)
+
 export {
   storeEmail,
   listEmails,
   deleteEmail,
-  getUserEmail
+  getUserEmail,
+  emailReplyPreview,
+  emailSync,
+  emailReplySend,
+  executeAgentTool
 };

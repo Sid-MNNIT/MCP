@@ -98,7 +98,86 @@ Body:
     }
 
 
+def classify_request_requirements(
+    user_message: str,
+    conversation_context: list | None = None,
+) -> dict:
+    """
+    Classifies whether a request requires:
+    - RAG (knowledge lookup)
+    - TOOL / ACTION execution
 
+    Returns STRICT JSON-compatible dict.
+    """
+
+    prompt = f"""
+You are an intent classification system.
+
+Decide:
+1. Does the user need knowledge lookup or explanation? (requires_rag)
+2. Does the user want an action or tool execution? (requires_tools)
+
+Rules:
+- RAG: explanations, definitions, debugging, errors, "why", "how"
+- ACTION: run, execute, trigger, start, deploy, schedule
+
+Respond ONLY in valid JSON:
+{{
+  "requires_rag": true | false,
+  "requires_tools": true | false,
+  "intent": "KNOWLEDGE" | "ACTION" | "BOTH"
+}}
+
+User message:
+{user_message}
+
+Conversation context:
+{conversation_context}
+""".strip()
+
+    client = get_groq_client()
+
+    response = client.chat.completions.create(
+        model=MODEL_ID,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        max_tokens=120,
+        
+    )
+
+    raw_text = response.choices[0].message.content.strip()
+
+
+    print("\n[LLM RAW RESPONSE]")
+    print(raw_text)
+
+    print("\n[CALENDAR EXTRACTION RAW RESPONSE]")
+    print(raw_text)
+
+    # Strip markdown if present
+    cleaned = raw_text
+    if raw_text.startswith("```"):
+        cleaned = raw_text.strip("`").replace("json", "").strip()
+
+    try:
+        result = json.loads(cleaned)
+    except Exception as e:
+        print("[LLM PARSE ERROR]", e)
+        return {
+            "requires_rag": False,
+            "requires_tools": False,
+            "intent": "KNOWLEDGE",
+        }
+
+
+    print("[LLM PARSED RESULT]", result)
+
+    return {
+        "requires_rag": bool(result.get("requires_rag", False)),
+        "requires_tools": bool(result.get("requires_tools", False)),
+        "intent": result.get("intent", "KNOWLEDGE").upper(),
+    }
+    
 
 def extract_calendar_details_from_email(subject: str, text: str) -> dict:
     """

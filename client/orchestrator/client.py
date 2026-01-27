@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 import os
 
 from client.mcp.client import get_mcp_client
-from client.orchestrator.email_agent import prepare_email_reply_preview, send_email_with_approval
+from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval,ingest_and_store_emails
 
 from client.orchestrator.job_agent import (
     search_jobs_pipeline,
@@ -46,18 +46,16 @@ async def execute_agent(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized service")
 
     body = await request.json()
-
     tool_name = body.get("tool")
     args = body.get("args", {})
     user_id = body.get("userId")
+    jwt = request.state.jwt
 
     if not tool_name or not user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="tool and userId required"
-        )
+        raise HTTPException(status_code=400, detail="tool and userId required")
 
-    args["userId"] = user_id
+    # Tools expect args.userId → already provided by Node
+    args.setdefault("userId", user_id)
 
     mcp = await get_mcp_client()
     tools = await mcp.get_tools()
@@ -66,9 +64,14 @@ async def execute_agent(request: Request):
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
 
-    result = await tool.ainvoke(args)
-    return result[0]
-
+    try:
+        result = await tool.ainvoke(args)
+        return result[0]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Tool execution failed: {str(e)}"
+        )
 
 # ---------------------------
 # Email reply preview pipeline
@@ -122,6 +125,24 @@ async def email_reply_send(request: Request):
     result = await send_email_with_approval(draft, jwt)
     return result
 
+
+@app.post("/pipelines/email-sync")
+async def email_sync(request: Request):
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    jwt = request.state.jwt
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    print(jwt, "APP>POST/PIPELINE EMAIL SYNC")
+
+    result = await ingest_and_store_emails(jwt)
+
+    return {
+        "status": "ok",
+        "synced": len(result)
+    }
 
 # ============================================================
 # JOB PIPELINES

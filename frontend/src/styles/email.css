@@ -1,5 +1,5 @@
 /* ================================================= */
-/* 💎 JOBSY PREMIUM THEME (Uniform & Persistent)     */
+/* 💎 JOBSY PREMIUM THEME (Final Formatted Grid)     */
 /* ================================================= */
 :root {
   --action-sidebar-width: 180px;
@@ -27,7 +27,9 @@
   /* SIZING */
   --sidebar-width: 240px;
   --sidebar-collapsed: 80px;
-  --list-width: 440px;
+  --list-width: 400px;        
+  /* ⚡️ CHANGED: Much tighter list to save space for Detail View */
+  --list-width-compact: 320px;
 }
 
 /* DARK MODE OVERRIDES */
@@ -45,7 +47,7 @@
 }
 
 /* ================================================= */
-/* 🏗️ MAIN LAYOUT GRID                               */
+/* 🏗️ MAIN LAYOUT                                    */
 /* ================================================= */
 
 .email-container {
@@ -61,11 +63,12 @@
 @media (min-width: 1351px) {
   .email-container.split-view {
     grid-template-columns: 
-      var(--action-sidebar-width) 
-      var(--list-width) 
-      1fr;
+      var(--action-sidebar-width)
+      minmax(360px, var(--list-width))
+      minmax(520px, 1fr);
   }
 }
+
 
 
 /* PANELS */
@@ -397,17 +400,6 @@
   z-index: 20;
   height: 100%;
   animation: slideInContent 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  /* ⚡️ DEFAULT: Hidden until split view activates */
-  display: none;
-}
-
-/* ⚡️ ACTIVE STATE: Show Detail, Hide List */
-.split-view .email-content-col {
-  display: flex;
-}
-
-.split-view .email-list-col {
-  display: none;
 }
 
 @keyframes slideInContent {
@@ -704,7 +696,7 @@
 }
 
 /* ================================================= */
-/* ⚡️ RESPONSIVENESS (PERFECTED LOGIC)               */
+/* ⚡️ SMART RESPONSIVENESS (FINAL LOGIC)             */
 /* ================================================= */
 
 /* 🟡 PHASE 2: COMPACT VIEW (1000px - 1350px) */
@@ -712,34 +704,59 @@
 /* 🟡 ACTION SIDEBAR COMPACT MODE */
 @media (max-width: 1350px) {
   .email-container {
-    grid-template-columns: var(--action-sidebar-collapsed) 1fr;
+    grid-template-columns: var(--action-sidebar-width) 1fr;
   }
 
   .email-container.split-view {
-    grid-template-columns:
-      var(--action-sidebar-collapsed)
-      var(--list-width-compact)
-      1fr;
+  grid-template-columns:
+    var(--action-sidebar-width)
+    minmax(300px, var(--list-width-compact))
+    minmax(420px, 1fr);
+}
+
+
+
+ .email-sidebar {
+  padding: 12px;
+  align-items: stretch;
+}
+
+
+
+
+.sidebar-btn {
+  justify-content: flex-start;
+  padding: 12px 14px;
+}
+
+}
+
+/* 🔴 PHASE 3: COLLAPSED VIEW (< 1000px) */
+/* Sidebar Icons + Detail ONLY (List Hides) */
+@media (max-width: 999px) {
+  /* Inherit Sidebar Collapse from above */
+  .email-container.split-view {
+    grid-template-columns: 80px 1fr;
   }
 
-  .email-sidebar {
-    padding: 8px;
-    align-items: center;
-  }
-
-  .sidebar-btn span {
+  /* HIDE List Column when email is open */
+  .split-view .email-list-col {
     display: none;
   }
 
-  .sidebar-btn {
-    justify-content: center;
-    padding: 12px;
+  /* Make Content Full Width */
+  .split-view .email-content-col {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Show Back Button to return to list */
+  .back-btn-mobile {
+    display: flex;
   }
 }
 
-/* 🟢 PHASE 2: MOBILE (< 768px) 
-   Sidebar disappears. Full stacking.
-*/
+/* 📱 MOBILE (< 768px) */
 @media (max-width: 768px) {
   .email-container,
   .email-container.split-view {
@@ -759,12 +776,10 @@
     display: flex;
   }
 
-  /* Ensure Detail is hidden on mobile until split-view */
   .email-content-col {
     display: none;
   }
 
-  /* Logic: If split view (email open), Hide List, Show Content */
   .split-view .email-list-col {
     display: none;
   }
@@ -773,11 +788,6 @@
     display: flex;
     width: 100%;
     height: 100%;
-  }
-
-  /* Show back button only on mobile if you want manual navigation */
-  .back-btn-mobile {
-    display: flex;
   }
 
   .compose-window {
