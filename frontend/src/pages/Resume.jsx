@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import TopHeader from "../components/layout/TopHeader";
 import EditEntityModal from "../components/resume/EditEntityModal";
@@ -10,6 +10,7 @@ import PersonalInfoCard from "../components/resume/PersonalInfoCard";
 import ExperienceSummaryCard from "../components/resume/ExperienceSummaryCard";
 import SkillsCloudCard from "../components/resume/SkillsCloudCard";
 import ExtractedMetadataCard from "../components/resume/ExtractedMetadataCard";
+import { getCurrentUser } from "../utils/api";
 
 import "../styles/dashboard.css";
 import "../styles/resume.css";
@@ -44,11 +45,25 @@ const initialEntities = {
 
 export default function Resume() {
   // 1. Data States
+  const [user, setUser] = useState(null);
   const [entities, setEntities] = useState(initialEntities);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [scoreData, setScoreData] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [editModalConfig, setEditModalConfig] = useState(null);
+
+  // Fetch current user
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userRes = await getCurrentUser();
+        setUser(userRes.user);
+      } catch (err) {
+        console.error("Failed to load user:", err);
+      }
+    };
+    loadUser();
+  }, []);
 
   // 2. Handlers
   const handleFileUpload = (file) => {
@@ -112,7 +127,7 @@ export default function Resume() {
     <div className="dashboard-shell">
       <Sidebar />
       <main className="dashboard-root">
-        <TopHeader fullName="Priyangshu Ghosh" title="Resume Parsing" />
+        <TopHeader fullName={user?.fullname || "User"} title="Resume Analysis" hideGreeting />
         
         {/* MAIN LAYOUT CONTAINER */}
         <div className="resume-container">

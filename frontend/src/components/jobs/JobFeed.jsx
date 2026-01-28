@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import JobCard from "./JobCard";
 
 const JobFeed = ({
@@ -10,86 +10,123 @@ const JobFeed = ({
   savedJobIds,
   onSaveJob,
   onUnsaveJob,
-  sortBy,        // New Prop
-  onSortChange   // New Prop
+  sortBy,
+  onSortChange,
+  viewMode,
+  onViewChange,
 }) => {
+  const isSavedView = viewMode === "saved";
+
+  const sortedJobs = useMemo(() => {
+    if (sortBy === "salary") {
+      return [...jobs].sort((a, b) => {
+        const salA = a.salary_max || 0;
+        const salB = b.salary_max || 0;
+        return salB - salA;
+      });
+    }
+    if (sortBy === "date") {
+      return [...jobs].sort((a, b) => new Date(b.created) - new Date(a.created));
+    }
+    if (viewMode === "recommended") {
+      return [...jobs].sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+    }
+    return jobs;
+  }, [jobs, sortBy, viewMode]);
+
   return (
     <div className="jobs-feed-col">
-      {/* Header */}
       <div className="jobs-feed-header">
-        <div className="feed-title-wrapper">
+        <div className="feed-tabs-wrapper">
+          <div className="feed-tabs">
+            <button
+              className={`feed-tab ${viewMode === "search" ? "active" : ""}`}
+              onClick={() => onViewChange("search")}
+            >
+              All Jobs
+            </button>
+            <button
+              className={`feed-tab ${viewMode === "recommended" ? "active" : ""}`}
+              onClick={() => onViewChange("recommended")}
+            >
+              Recommended
+            </button>
+            <button
+              className={`feed-tab ${viewMode === "saved" ? "active" : ""}`}
+              onClick={() => onViewChange("saved")}
+            >
+              Saved
+            </button>
+          </div>
+        </div>
+
+        <div className="feed-controls-row">
           <div className="feed-count">
             {loading ? (
-              "Searching jobs..."
+              "Loading..."
             ) : (
               <>
-                Showing <span>{jobs.length}</span> job{jobs.length !== 1 ? 's' : ''}
+                <span>{jobs.length}</span> {jobs.length === 1 ? "job" : "jobs"} found
               </>
             )}
           </div>
-        </div>
 
-        <div className="feed-actions">
-          
-          {/* Sort Dropdown (Moved from Sidebar) */}
-          <select 
-            className="job-select sort-select-feed"
-            value={sortBy} 
-            onChange={(e) => onSortChange(e.target.value)}
-            style={{ 
-              width: 'auto', 
-              padding: '8px 12px', 
-              fontSize: '13px',
-              height: '38px',
-              borderRadius: '10px',
-              borderColor: 'var(--border-color)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="relevance">Relevance</option>
-            <option value="date">Date (Newest)</option>
-            <option value="salary">Salary (High to Low)</option>
-          </select>
+          <div className="feed-actions">
+            {jobs.length > 0 && (
+              <select
+                className="job-select sort-select-feed"
+                value={sortBy}
+                onChange={(e) => onSortChange(e.target.value)}
+              >
+                <option value="relevance">Relevance</option>
+                <option value="date">Date (Newest)</option>
+                <option value="salary">Salary (High to Low)</option>
+              </select>
+            )}
 
-          {/* Mobile Filter Trigger */}
-          <button
-            className="btn-filter-trigger"
-            onClick={onToggleFilters}
-            title="Open Filters"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="20"
-              height="20"
-            >
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-          </button>
+            {viewMode === "search" && (
+              <button
+                className="btn-filter-trigger"
+                onClick={onToggleFilters}
+                title="Open Filters"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  width="20"
+                  height="20"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Job List */}
-      <div className="jobs-scroll-area">
+      <div
+        className="jobs-scroll-area"
+        key={viewMode}
+      >
         {loading ? (
           <div className="jobs-empty-state">
             <div className="spinner"></div>
-            <h3>Loading jobs...</h3>
-            <p>Please wait while we search for the best opportunities</p>
+            <p>
+              {viewMode === "recommended"
+                ? "Curating matches..."
+                : "Finding jobs..."}
+            </p>
           </div>
-        ) : jobs.length > 0 ? (
-          jobs.map((job) => (
+        ) : sortedJobs.length > 0 ? (
+          sortedJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}
               isSelected={selectedJob?.id === job.id}
               isSaved={savedJobIds?.has(job.id)}
+              isSavedView={isSavedView}
               onClick={() => onSelectJob(job)}
               onSave={() => onSaveJob(job)}
               onUnsave={() => onUnsaveJob(job.id)}
@@ -97,20 +134,11 @@ const JobFeed = ({
           ))
         ) : (
           <div className="jobs-empty-state">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              width="64"
-              height="64"
-              style={{ marginBottom: "16px", opacity: 0.5 }}
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
-            <h3>No jobs found</h3>
-            <p>Try adjusting your filters or search with different keywords</p>
+            <p>
+              {viewMode === "saved"
+                ? "No saved jobs."
+                : "No jobs found."}
+            </p>
           </div>
         )}
       </div>

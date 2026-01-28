@@ -8,11 +8,21 @@ import JobFilters from "../components/jobs/JobFilters";
 import JobFeed from "../components/jobs/JobFeed";
 import JobDetails from "../components/jobs/JobDetails";
 
-import { searchJobs, getRecommendedJobs, saveJob, unsaveJob, getSavedJobs } from "../utils/api";
+import {
+  searchJobs,
+  getRecommendedJobs,
+  saveJob,
+  unsaveJob,
+  getSavedJobs,
+  getCurrentUser,
+} from "../utils/api";
 
 const Jobs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const [user, setUser] = useState(null);
+  const [viewMode, setViewMode] = useState("search");
 
   const [filters, setFilters] = useState({
     keywords: searchParams.get("keywords") || "",
@@ -32,28 +42,18 @@ const Jobs = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showJobDetails, setShowJobDetails] = useState(false);
 
-  // Sorting Logic
-  const getSortedJobs = () => {
-    if (!jobs) return [];
-    return [...jobs].sort((a, b) => {
-      if (filters.sortBy === 'salary') {
-        const salA = a.salary_max || 0;
-        const salB = b.salary_max || 0;
-        if (salA === 0 && salB > 0) return 1;
-        if (salB === 0 && salA > 0) return -1;
-        return salB - salA;
-      }
-      if (filters.sortBy === 'date') {
-        return new Date(b.created || 0) - new Date(a.created || 0);
-      }
-      return 0;
-    });
-  };
-
-  const sortedJobs = getSortedJobs();
-
   useEffect(() => {
-    loadSavedJobs();
+    const loadInitialData = async () => {
+      try {
+        const userRes = await getCurrentUser();
+        setUser(userRes.user);
+      } catch (err) {
+        console.error("Failed to load user:", err);
+      }
+    };
+    loadInitialData();
+    loadSavedJobIds();
+
     if (searchParams.get("keywords")) {
       handleSearchJobs();
     }
@@ -69,11 +69,11 @@ const Jobs = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showJobDetails]);
 
-  const loadSavedJobs = async () => {
+  const loadSavedJobIds = async () => {
     try {
       const response = await getSavedJobs();
       if (response.success && response.data?.jobs) {
-        const ids = new Set(response.data.jobs.map(job => job.id));
+        const ids = new Set(response.data.jobs.map((job) => job.id));
         setSavedJobIds(ids);
       }
     } catch (err) {
@@ -81,26 +81,37 @@ const Jobs = () => {
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  const handleFetchSavedJobsForView = async () => {
+    setLoading(true);
+    setError(null);
+    setSelectedJob(null);
+    setShowJobDetails(false);
+    try {
+      const response = await getSavedJobs();
+      if (response.success && response.data?.jobs) {
+        setJobs(response.data.jobs);
+      } else {
+        setJobs([]);
+      }
+    } catch (err) {
+      setError("Failed to load saved jobs.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSearchJobs = async () => {
-    if (!filters.keywords.trim()) {
-      setError("Please enter keywords to search");
-      return;
-    }
+    setLoading(true);
+    setError(null);
+    setSelectedJob(null);
+    setShowJobDetails(false);
+
+    setSearchParams({
+      keywords: filters.keywords,
+      ...(filters.location && { location: filters.location }),
+    });
+
     try {
-      setLoading(true);
-      setError(null);
-      setShowJobDetails(false);
-      setSelectedJob(null);
-
-      setSearchParams({
-        keywords: filters.keywords,
-        ...(filters.location && { location: filters.location }),
-      });
-
       const response = await searchJobs({
         keywords: filters.keywords,
         location: filters.location,
@@ -108,7 +119,6 @@ const Jobs = () => {
         maxResults: 20,
         page: 1,
       });
-
       if (response.success === false) throw new Error(response.message);
       setJobs(response.data?.jobs || []);
     } catch (error) {
@@ -120,12 +130,11 @@ const Jobs = () => {
   };
 
   const handleLoadRecommended = async () => {
+    setLoading(true);
+    setError(null);
+    setSelectedJob(null);
+    setShowJobDetails(false);
     try {
-      setLoading(true);
-      setError(null);
-      setShowJobDetails(false);
-      setSelectedJob(null);
-
       const response = await getRecommendedJobs();
       if (response.success === false) throw new Error(response.message);
       setJobs(response.data?.jobs || []);
@@ -136,22 +145,51 @@ const Jobs = () => {
     }
   };
 
+  const handleViewChange = (mode) => {
+    setViewMode(mode);
+    if (mode === "search") {
+      if (filters.keywords) handleSearchJobs();
+      else setJobs([]);
+    } else if (mode === "recommended") {
+      handleLoadRecommended();
+    } else if (mode === "saved") {
+      handleFetchSavedJobsForView();
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleSaveJob = async (job) => {
     const response = await saveJob({
-        id: job.id, title: job.title, company: job.company, 
-        location: job.location, url: job.apply_url, match_score: job.match_score 
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      url: job.apply_url,
+      match_score: job.match_score,
     });
-    if (response.success !== false) setSavedJobIds(prev => new Set([...prev, job.id]));
+    if (response.success !== false)
+      setSavedJobIds((prev) => new Set([...prev, job.id]));
   };
 
   const handleUnsaveJob = async (jobId) => {
     const response = await unsaveJob(jobId);
     if (response.success !== false) {
-      setSavedJobIds(prev => {
+      setSavedJobIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(jobId);
         return newSet;
       });
+
+      if (viewMode === "saved") {
+        setJobs((prevJobs) => prevJobs.filter((job) => job.id !== jobId));
+        if (selectedJob?.id === jobId) {
+          setShowJobDetails(false);
+          setSelectedJob(null);
+        }
+      }
     }
   };
 
@@ -173,26 +211,43 @@ const Jobs = () => {
 
       <div className="jobs-main-area">
         <div className="jobs-page-header">
-          <TopHeader title="Find your next role" hideGreeting />
-        </div>
-
-        <div style={{ padding: "0 24px", marginBottom: "20px" }}>
-          <button onClick={handleLoadRecommended} className="btn-recommended">
-            ✨ Get Recommended Jobs
-          </button>
+          <TopHeader
+            fullName={user?.fullname || "User"}
+            title="Find your next role"
+            hideGreeting
+          />
         </div>
 
         {error && (
-          <div style={{ margin: "0 24px 20px", padding: "14px", background: "#fee2e2", color: "#991b1b", borderRadius: "12px" }}>
-            {error} <button onClick={() => setError(null)} style={{ float: 'right', background:'none', border:'none' }}>✕</button>
+          <div
+            style={{
+              margin: "0 24px 20px",
+              padding: "14px",
+              background: "#fee2e2",
+              color: "#991b1b",
+              borderRadius: "12px",
+            }}
+          >
+            {error}{" "}
+            <button
+              onClick={() => setError(null)}
+              style={{ float: "right", background: "none", border: "none" }}
+            >
+              ✕
+            </button>
           </div>
         )}
 
-        <div className={`jobs-content-grid ${showJobDetails ? 'details-open' : ''}`}>
-          
-          {/* Mobile Filter Backdrop */}
+        <div
+          className={`jobs-content-grid ${
+            showJobDetails ? "details-open" : ""
+          }`}
+        >
           {showMobileFilters && (
-            <div className="mobile-filter-overlay" onClick={() => setShowMobileFilters(false)} />
+            <div
+              className="mobile-filter-overlay"
+              onClick={() => setShowMobileFilters(false)}
+            />
           )}
 
           <JobFilters
@@ -201,11 +256,14 @@ const Jobs = () => {
             onSearch={handleSearchJobs}
             isOpen={showMobileFilters}
             onClose={() => setShowMobileFilters(false)}
+            isDisabled={viewMode !== "search"}
           />
 
           <JobFeed
-            jobs={sortedJobs}
+            jobs={jobs}
             loading={loading}
+            viewMode={viewMode}
+            onViewChange={handleViewChange}
             selectedJob={selectedJob}
             onSelectJob={handleSelectJob}
             onToggleFilters={() => setShowMobileFilters(true)}
@@ -216,10 +274,11 @@ const Jobs = () => {
             onSortChange={(val) => handleFilterChange("sortBy", val)}
           />
 
-          {/* FIX: DETAILS OVERLAY BACKDROP */}
-          {/* Only rendered when details are open. CSS handles display logic (none on desktop, block on tablet) */}
           {showJobDetails && (
-            <div className="details-overlay-backdrop" onClick={handleCloseDetails}></div>
+            <div
+              className="details-overlay-backdrop"
+              onClick={handleCloseDetails}
+            ></div>
           )}
 
           <JobDetails

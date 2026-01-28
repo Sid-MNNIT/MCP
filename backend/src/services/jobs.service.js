@@ -66,7 +66,7 @@ class JobsService {
   /* Job Recommendations Pipeline                          */
   /* ===================================================== */
 
-  async getRecommendedJobs(userId) {
+    async getRecommendedJobs(userId, jwt) {
     try {
       console.log(`✨ Getting recommendations for user: ${userId}`);
       
@@ -81,6 +81,7 @@ class JobsService {
           maxResults: 20,
         },
         userId,
+        jwt,
       });
     } catch (error) {
       console.error("❌ Recommendation error:", error);

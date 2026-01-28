@@ -58,7 +58,7 @@ async def search_jobs(
         result = await tool.ainvoke({
             "keywords": keywords,
             "country": country,
-            "where": where,
+            "where": where or "",
             "max_results": max_results,
             "page": page,
         })

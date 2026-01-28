@@ -13,10 +13,11 @@ import mapEmailForUI from "../components/emails/EmailMapper.jsx";
 import AiReplyPreviewModal from "../components/emails/AiReplyPreviewModal.jsx"
 import "../styles/dashboard.css";
 import "../styles/email.css";
-import { getEmails,generateAiReplyPreview,sendAiReply,syncEmails } from "../utils/api.js";
+import { getEmails,generateAiReplyPreview,sendAiReply,syncEmails,getCurrentUser } from "../utils/api.js";
 
 export default function Emails() {
 
+  const [user, setUser] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState("all");
 
   const [selectedEmail, setSelectedEmail] = useState(null);
@@ -45,21 +46,25 @@ export default function Emails() {
 
 
 
-  // Fetch emails
+  // Fetch user and emails
   useEffect(() => {
-    const loadEmails = async () => {
+    const loadData = async () => {
       try {
-        const res = await getEmails();
-        const mapped = (res.emails || []).map(mapEmailForUI);
+        const [userRes, emailsRes] = await Promise.all([
+          getCurrentUser(),
+          getEmails()
+        ]);
+        setUser(userRes.user);
+        const mapped = (emailsRes.emails || []).map(mapEmailForUI);
         setEmails(mapped);
       } catch (err) {
-        console.error("Failed to load emails", err);
+        console.error("Failed to load data", err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadEmails();
+    loadData();
   }, []);
 
   // Filter + search
@@ -192,7 +197,7 @@ const handleGenerateAiReply = async (email) => {
       <div className="dashboard-shell">
         <Sidebar />
         <main className="dashboard-root">
-          <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
+          <TopHeader title="Emails" hideGreeting={true} fullName={user?.fullname || "User"} />
           <p style={{ padding: "1rem" }}>Loading emails…</p>
         </main>
       </div>
@@ -203,7 +208,7 @@ const handleGenerateAiReply = async (email) => {
     <div className="dashboard-shell">
       <Sidebar />
       <main className="dashboard-root">
-        <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
+        <TopHeader title="Emails" hideGreeting={true} fullName={user?.fullname || "User"} />
 
         <div className={`email-container ${selectedEmail ? "split-view" : ""}`}>
 

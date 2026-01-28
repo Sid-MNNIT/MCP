@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import asyncio
 
 from client.wrappers.job_wrapper import (
     search_jobs,
@@ -6,6 +7,162 @@ from client.wrappers.job_wrapper import (
     get_job_categories,
 )
 from client.schemas.job import JobSearchResponse, Job
+
+from client.backend_client.user_api import get_user_profile, extract_user_context
+from client.llm.job_matching_service import generate_search_queries, rank_and_score_jobs
+from client.orchestrator.rule_based_filter import filter_jobs_by_rules
+
+
+async def get_personalized_recommendations_hybrid(
+    user_id: str,
+    jwt: str,
+    max_results: int = 20,
+) -> Dict[str, Any]:
+    """
+    HYBRID Job Recommendations Pipeline
+    
+    Flow:
+    1. Fetch user profile from backend
+    2. LLM generates 3-5 targeted search queries
+    3. Execute all searches in parallel (aggregate 50-100 jobs)
+    4. Rule-based filtering (fast, deterministic)
+    5. LLM ranking (intelligent, semantic)
+    6. Return top N with match scores and reasons
+    """
+    
+    try:
+        print(f"🚀 Starting HYBRID recommendations for user: {user_id}")
+        
+        # Step 1: Fetch user profile
+        print("📥 Fetching user profile...")
+        profile = await get_user_profile(jwt)
+        
+        if not profile:
+            print("⚠️ No user profile found, falling back to generic search")
+            return await search_jobs_pipeline(
+                keywords="software engineer",
+                location="",
+                country="in",
+                user_id=user_id,
+                jwt=jwt,
+                max_results=max_results,
+            )
+        
+        user_context = extract_user_context(profile)
+        print(f"✅ User context: {len(user_context['skills'])} skills, {user_context['experience_years']} years exp")
+        
+        # Step 2: Generate search queries using LLM
+        print("🤖 Generating personalized search queries with LLM...")
+        try:
+            search_queries = generate_search_queries(user_context)
+        except Exception as e:
+            print(f"⚠️ LLM query generation failed: {e}, using fallback")
+            skills_str = ", ".join(user_context["skills"][:3])
+            location = user_context["location"].get("city", "")
+            search_queries = [f"{skills_str} developer {location}"]
+        
+        # Step 3: Execute all searches in parallel with better error handling
+        print(f"🔍 Executing {len(search_queries)} parallel searches...")
+        
+        country = user_context["preferences"]["country"]
+        location = user_context["preferences"].get("city", "")
+        
+        # Create search tasks
+        search_tasks = []
+        for query in search_queries:
+            task = search_jobs(
+                keywords=query,
+                country=country,
+                where=location or "",
+                max_results=20,
+                page=1,
+            )
+            search_tasks.append(task)
+        
+        # Execute searches with individual error handling
+        search_results = []
+        for i, task in enumerate(search_tasks):
+            try:
+                result = await task
+                search_results.append(result)
+                print(f"✅ Search {i+1}/{len(search_tasks)} completed: {len(result.jobs) if result.success else 0} jobs")
+            except Exception as e:
+                print(f"⚠️ Search {i+1}/{len(search_tasks)} failed: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                # Continue with other searches
+                continue
+        
+        # Aggregate all jobs (remove duplicates by ID)
+        all_jobs = []
+        seen_ids = set()
+        
+        for result in search_results:
+            if hasattr(result, 'success') and result.success:
+                for job in result.jobs:
+                    if job.id not in seen_ids:
+                        all_jobs.append(job.dict())
+                        seen_ids.add(job.id)
+        
+        print(f"✅ Aggregated {len(all_jobs)} unique jobs from {len(search_results)} successful searches")
+        
+        if not all_jobs:
+            return {
+                "success": False,
+                "error": "No jobs found matching your profile",
+                "jobs": [],
+                "count": 0,
+            }
+        
+        # Step 4: Rule-based filtering (FAST)
+        print("⚡ Applying rule-based filters...")
+        filtered_jobs = filter_jobs_by_rules(all_jobs, user_context)
+        
+        if not filtered_jobs:
+            return {
+                "success": True,
+                "jobs": [],
+                "count": 0,
+                "message": "No jobs matched your profile criteria"
+            }
+        
+        # Step 5: LLM ranking (INTELLIGENT)
+        print("🤖 LLM ranking and scoring jobs...")
+        try:
+            ranked_jobs = rank_and_score_jobs(user_context, filtered_jobs[:50])
+        except Exception as e:
+            print(f"⚠️ LLM ranking failed: {e}")
+            # Fallback: use rule-based scores only
+            for job in filtered_jobs:
+                job["match_score"] = job.get("basic_match_score", 50)
+                job["match_reason"] = "Match based on skill keywords"
+            ranked_jobs = filtered_jobs
+        
+        # Step 6: Return top N
+        final_jobs = ranked_jobs[:max_results]
+        
+        print(f"✅ Returning top {len(final_jobs)} recommendations")
+        
+        return {
+            "success": True,
+            "jobs": final_jobs,
+            "count": len(final_jobs),
+            "total_found": len(all_jobs),
+            "filtered_count": len(filtered_jobs),
+            "search_queries_used": search_queries,
+            "recommendation_type": "hybrid_llm_powered",
+        }
+        
+    except Exception as e:
+        print(f"❌ Hybrid recommendations error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return {
+            "success": False,
+            "error": str(e),
+            "jobs": [],
+        }
 
 
 # ============================================================

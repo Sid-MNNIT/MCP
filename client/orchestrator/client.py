@@ -6,7 +6,7 @@ from client.orchestrator.email_agent import prepare_email_reply_preview,send_ema
 
 from client.orchestrator.job_agent import (
     search_jobs_pipeline,
-    get_personalized_recommendations,
+    get_personalized_recommendations_hybrid,
     fetch_job_categories,
 )
 
@@ -187,6 +187,9 @@ async def job_search_pipeline_endpoint(request: Request):
 
 @app.post("/pipelines/job-recommendations")
 async def job_recommendations_pipeline_endpoint(request: Request):
+    """
+    Personalized job recommendations pipeline - HYBRID APPROACH
+    """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -199,10 +202,11 @@ async def job_recommendations_pipeline_endpoint(request: Request):
     user_id = body.get("userId")
     if not user_id:
         raise HTTPException(status_code=400, detail="userId required")
-
-    print(f"📥 Recommendations request: user={user_id}")
-
-    result = await get_personalized_recommendations(
+    
+    print(f"📥 HYBRID Recommendations request: user={user_id}")
+    
+    # Use the new hybrid function
+    result = await get_personalized_recommendations_hybrid(
         user_id=user_id,
         jwt=jwt,
         max_results=body.get("maxResults", 20),
@@ -211,7 +215,6 @@ async def job_recommendations_pipeline_endpoint(request: Request):
     print(f"📤 Recommendations response: success={result.get('success')}, count={result.get('count', 0)}")
 
     return result
-
 
 @app.get("/pipelines/job-categories")
 async def job_categories_pipeline_endpoint(request: Request):

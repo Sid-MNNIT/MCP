@@ -51,14 +51,16 @@ export const searchJobs = asyncHandler(async (req, res) => {
  */
 export const getRecommendedJobs = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  const token =
+    req.header("Authorization")?.replace("Bearer ", "") ||
+    req.cookies?.accessToken;
 
-  const result = await jobsService.getRecommendedJobs(userId);
+  const result = await jobsService.getRecommendedJobs(userId, token);
 
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Recommended jobs retrieved"));
 });
-
 /**
  * Get job categories
  * GET /api/jobs/categories
