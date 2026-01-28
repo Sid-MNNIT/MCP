@@ -1,6 +1,7 @@
 from services.ats_scorer import ATSScorer
 from services.llm_scorer import LLMScorer
-from services.hf_client import HuggingFaceClient
+from services.groq_client import GroqClient
+
 
 
 class ScorePipeline:
@@ -9,7 +10,7 @@ class ScorePipeline:
         self.llm_scorer = None
 
         if use_llm:
-            self.llm_scorer = LLMScorer(HuggingFaceClient())
+            self.llm_scorer = LLMScorer(GroqClient())
 
     def run(self, parsed_resume, job_description=None):
         ats_result = self.ats_scorer.score(parsed_resume)

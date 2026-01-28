@@ -1,27 +1,26 @@
-from pathlib import Path
-
-from pipelines.extract_pipeline import extract_resume
 from services.ats_scorer import ATSScorer
 from services.llm_scorer import LLMScorer
-from services.hf_client import HuggingFaceClient
-from dotenv import load_dotenv
-load_dotenv()
+from services.groq_client import GroqClient
+
+from pipelines.extract_pipeline import extract_resume
 
 
 def test_llm():
-    # Load resume text
-    base_dir = Path(__file__).resolve().parents[1]
     with open("services/sample_output.txt", encoding="utf-8") as f:
         raw_text = f.read()
 
     resume = extract_resume(raw_text)
 
-    # Run ATS first (deterministic)
     ats = ATSScorer()
     ats_result = ats.score(resume)
 
-    # Run LLM
-    client = HuggingFaceClient()
+    print("\n===== ATS SCORE RESULT =====\n")
+    print("Total Score:", ats_result["total_score"])
+    print("Breakdown:", ats_result["breakdown"])
+    print("Flags:", ats_result["flags"])
+
+    print("\n===== LLM SCORER (GROQ) =====\n")
+    client = GroqClient()
     llm = LLMScorer(client)
 
     llm_result = llm.evaluate(
@@ -30,12 +29,10 @@ def test_llm():
         job_description=None
     )
 
-    print("\n===== LLM RESULT =====\n")
+    print("Score Adjustment:", llm_result["score_adjustment"])
     print("Feedback:")
-    for f in llm_result["feedback"]:
-        print("-", f)
-
-    print("\nScore Adjustment:", llm_result["score_adjustment"])
+    for item in llm_result["feedback"]:
+        print("-", item)
 
 
 if __name__ == "__main__":
