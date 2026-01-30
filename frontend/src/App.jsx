@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile"; // 1. Import the new page
+import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Email from "./pages/Emails";
 import ProtectedRoute from "./components/common/ProtectedRoute";
-import Job from "./pages/Jobs"
+import Job from "./pages/Jobs";
 
 function App() {
   return (
@@ -30,6 +30,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      
       <Route 
         path="/emails" 
         element={
@@ -38,6 +39,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+      
       <Route 
         path="/jobs" 
         element={

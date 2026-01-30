@@ -1,7 +1,9 @@
+// Load environment variables FIRST before any other imports
 import dotenv from "dotenv";
 dotenv.config();
-import {app} from "./app.js";
 
+// Now import everything else
+import {app} from "./app.js";
 import express from "express";
 import mongoose from "mongoose";
 import connectDB from "./db/index.js"

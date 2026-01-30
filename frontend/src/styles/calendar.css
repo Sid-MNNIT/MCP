@@ -1,0 +1,61 @@
+/* Calendar connection prompt */
+.calendar-connect-prompt {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.calendar-connect-prompt h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.calendar-connect-prompt p {
+  margin-bottom: 1.5rem;
+  color: #6b7280;
+}
+
+.calendar-connect-btn {
+  padding: 0.75rem 2rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.calendar-connect-btn:hover {
+  background: #4f46e5;
+}
+
+/* Loading and error states */
+.calendar-loading,
+.calendar-error {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.calendar-loading {
+  color: #6b7280;
+}
+
+.calendar-error {
+  color: #ef4444;
+  background: #fee2e2;
+  border-radius: 0.5rem;
+}
+
+/* Tooltip description */
+.tooltip-description {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

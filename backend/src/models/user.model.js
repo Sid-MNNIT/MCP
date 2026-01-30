@@ -12,6 +12,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    // Add this field to your User schema
+    googleCalendarTokens: {
+      access_token: String,
+      refresh_token: String,
+      scope: String,
+      token_type: String,
+      expiry_date: Number,
+    },
 
     password: {
       type: String,
