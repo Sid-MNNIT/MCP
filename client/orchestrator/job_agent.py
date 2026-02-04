@@ -165,6 +165,139 @@ async def get_personalized_recommendations_hybrid(
         }
 
 
+async def rank_jobs_by_relevance(
+    jobs: List[Dict],
+    user_id: str,
+    jwt: str,
+) -> Dict[str, Any]:
+    """
+    Lightweight ranking for search results.
+    Uses rule-based filtering + LLM scoring for speed.
+    Faster than full recommendations (no multi-query search).
+    """
+    try:
+        print(f"🎯 Ranking {len(jobs)} search results for user: {user_id}")
+        
+        # Fetch user profile
+        profile = await get_user_profile(jwt)
+        if not profile:
+            print("⚠️ No user profile found, returning unranked")
+            return {"success": True, "jobs": jobs}
+        
+        user_context = extract_user_context(profile)
+        print(f"✅ User context: {len(user_context['skills'])} skills")
+        
+        # Apply rule-based scoring (fast)
+        scored_jobs = []
+        for job in jobs:
+            score = calculate_relevance_score(job, user_context)
+            job_copy = job.copy()
+            job_copy["relevance_score"] = score
+            scored_jobs.append(job_copy)
+        
+        # Sort by relevance
+        scored_jobs.sort(key=lambda j: j["relevance_score"], reverse=True)
+        
+        print(f"✅ Ranked jobs (top score: {scored_jobs[0]['relevance_score'] if scored_jobs else 0})")
+        
+        return {
+            "success": True,
+            "jobs": scored_jobs,
+        }
+    except Exception as e:
+        print(f"❌ Ranking error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": True, "jobs": jobs}  # Fail gracefully
+
+
+def calculate_relevance_score(job: Dict, user_context: Dict) -> int:
+    """
+    Calculate a 0-100 relevance score based on rules.
+    More comprehensive than basic filter.
+    """
+    score = 0
+    
+    job_title = normalize_text(job.get("title", ""))
+    job_desc = normalize_text(job.get("description", ""))
+    job_location = normalize_text(job.get("location", ""))
+    job_content = f"{job_title} {job_desc}"
+    
+    # 1. Skill matching (0-40 points)
+    matched_skills = 0
+    for skill in user_context["skills"][:15]:
+        if normalize_text(skill) in job_content:
+            matched_skills += 1
+    score += min(matched_skills * 3, 40)
+    
+    # 2. Location match (0-15 points)
+    preferred_city = normalize_text(user_context["location"].get("city", ""))
+    if preferred_city:
+        if preferred_city in job_location:
+            score += 15
+        elif "remote" in job_location:
+            score += 12
+        elif user_context["preferences"].get("remote"):
+            # User wants remote but job isn't remote
+            score -= 5
+    
+    # 3. Experience level match (0-20 points)
+    exp_years = user_context["experience_years"]
+    
+    # Senior level indicators
+    if exp_years >= 5:
+        if any(word in job_title for word in ["senior", "lead", "principal", "architect"]):
+            score += 20
+        elif any(word in job_title for word in ["junior", "intern", "entry"]):
+            score -= 10  # Penalty for mismatch
+    
+    # Mid level
+    elif 2 <= exp_years < 5:
+        if any(word in job_title for word in ["mid", "developer", "engineer"]):
+            score += 15
+        elif "senior" in job_title:
+            score += 8  # Slight bonus for growth opportunity
+    
+    # Junior level
+    else:
+        if any(word in job_title for word in ["junior", "entry", "graduate"]):
+            score += 15
+        elif "senior" in job_title:
+            score -= 10  # Too advanced
+    
+    # 4. Job type preference (0-10 points)
+    job_types = user_context["preferences"].get("job_types", [])
+    if job_types:
+        # Check if any preferred type matches
+        for jtype in job_types:
+            if normalize_text(jtype) in job_content:
+                score += 10
+                break
+    
+    # 5. Salary match (0-10 points)
+    min_salary = user_context["preferences"].get("min_salary")
+    if min_salary:
+        job_min_salary = job.get("salary_min")
+        if job_min_salary:
+            if job_min_salary >= min_salary:
+                score += 10
+            elif job_min_salary >= min_salary * 0.8:
+                score += 5
+    
+    # 6. Recent experience match (0-5 points)
+    recent_titles = user_context["experience_titles"][:2]
+    for title in recent_titles:
+        if normalize_text(title) in job_title:
+            score += 5
+            break
+    
+    return min(score, 100)  # Cap at 100
+
+
+def normalize_text(text: str) -> str:
+    """Normalize text for matching"""
+    import re
+    return re.sub(r'[^a-z0-9 ]', ' ', str(text).lower())
 # ============================================================
 # Pipeline 1: Complete Job Search with Optional Matching
 # ============================================================

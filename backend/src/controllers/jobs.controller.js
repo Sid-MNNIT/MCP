@@ -145,3 +145,29 @@ export const unsaveJob = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, result, result.message));
 });
+
+//rank job for relevence
+export const rankJobs = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { jobs } = req.body;
+
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { jobs: [] }, "No jobs to rank"));
+  }
+
+  const token =
+    req.header("Authorization")?.replace("Bearer ", "") ||
+    req.cookies?.accessToken;
+
+  const rankedJobs = await jobsService.rankJobsByRelevance(
+    jobs,
+    userId,
+    token
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { jobs: rankedJobs }, "Jobs ranked successfully"));
+});

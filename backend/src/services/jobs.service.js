@@ -47,6 +47,34 @@ class JobsService {
     }
   }
 
+  /* ===================================================== */
+  /* Job Relevance Ranking Pipeline                         */
+  /* ===================================================== */
+
+    async rankJobsByRelevance(jobs, userId, jwt) {
+      try {
+        console.log(`🔍 Ranking jobs: ${jobs.length} jobs for user: ${userId}`);
+        const result = await callMCP({
+          endpoint: "/pipelines/rank-jobs",
+          args: { jobs },
+          userId,
+          jwt
+        });
+  
+        if (result.success && result.jobs) {
+          return result.jobs;
+        }
+  
+        // Fallback: return original jobs if ranking fails
+        console.warn("⚠️ Ranking failed, returning unranked jobs");
+        return jobs;
+      } catch (error) {
+        console.error("⚠️ Ranking error:", error);
+        return jobs; // Fail gracefully
+      }
+    }
+
+
   async getJobCategories(country = "in", userId = null) {
     try {
       // Note: This is a GET endpoint, but we're calling via POST

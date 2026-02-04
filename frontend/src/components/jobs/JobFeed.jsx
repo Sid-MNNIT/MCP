@@ -14,6 +14,7 @@ const JobFeed = ({
   onSortChange,
   viewMode,
   onViewChange,
+  user,
 }) => {
   const isSavedView = viewMode === "saved";
 
@@ -78,7 +79,9 @@ const JobFeed = ({
                 value={sortBy}
                 onChange={(e) => onSortChange(e.target.value)}
               >
-                <option value="relevance">Relevance</option>
+                <option value="relevance" disabled={!user}>
+                  {user ? "Relevance" : "Relevance (Login Required)"}
+                </option>
                 <option value="date">Date (Newest)</option>
                 <option value="salary">Salary (High to Low)</option>
               </select>

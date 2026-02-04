@@ -4,17 +4,24 @@ import requests
 
 BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:5000")
 
-def save_email(email: dict, jwt: str):
-    if not jwt:
-        raise RuntimeError("JWT is required for save_email")
+def save_email(email: dict, jwt: str = None, user_id: str = None):
+    
+    if not jwt and not user_id:
+        raise RuntimeError("Either JWT or user_id is required for save_email")
+
+    headers = {"Content-Type": "application/json"}
+    payload = email.copy()
+    
+    if jwt:
+        headers["Authorization"] = f"Bearer {jwt}"
+    
+    if user_id:
+        payload["userId"] = user_id
 
     res = requests.post(
         f"{BASE_URL}/api/emails",
-        json=email,
-        headers={
-            "Authorization": f"Bearer {jwt}",
-            "Content-Type": "application/json"
-        },
+        json=payload,
+        headers=headers,
         timeout=10
     )
 

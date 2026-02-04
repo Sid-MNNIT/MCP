@@ -15,6 +15,7 @@ import {
   unsaveJob,
   getSavedJobs,
   getCurrentUser,
+  rankJobsByRelevance, 
 } from "../utils/api";
 
 const Jobs = () => {
@@ -68,6 +69,29 @@ const Jobs = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showJobDetails]);
+
+  // ✅ ADD THIS ENTIRE useEffect BLOCK
+  useEffect(() => {
+    const handleSortChange = async () => {
+      if (filters.sortBy === 'relevance' && jobs.length > 0 && user /*&& viewMode === 'search'*/) {
+        setLoading(true);
+        setError(null);
+        try {
+          const response = await rankJobsByRelevance(jobs);
+          if (response.success && response.data?.jobs) {
+            setJobs(response.data.jobs);
+          }
+        } catch (error) {
+          console.error("Failed to rank jobs:", error);
+          setError("Failed to sort by relevance. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    handleSortChange();
+  }, [filters.sortBy]); // Trigger when sortBy changes
 
   const loadSavedJobIds = async () => {
     try {
@@ -272,6 +296,7 @@ const Jobs = () => {
             onUnsaveJob={handleUnsaveJob}
             sortBy={filters.sortBy}
             onSortChange={(val) => handleFilterChange("sortBy", val)}
+            user={user} 
           />
 
           {showJobDetails && (

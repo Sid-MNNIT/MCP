@@ -4,9 +4,14 @@ import { emailService } from "../services/email.service.js";
 
 //store emails
 const storeEmail = asyncHandler(async (req, res) => {
-  console.log("req.user in storeEmail:", req.user);
+  // Get userId from either JWT (user flow) or body (cron flow)
+  const userId = req.user?._id || req.body.userId;
+  
+  if (!userId) {
+    throw new Error("userId not found - check authentication");
+  }
 
-  const userId = req.user._id;
+  console.log("Storing email for userId:", userId);
 
   const { emailId,threadId, type, from, subject, text, date } = req.body;
 
@@ -95,9 +100,18 @@ const getUserEmail=asyncHandler(async (req,res)=>{
 
 const executeAgentTool=asyncHandler(async (req, res)=> {
   try {
-    const { tool, args } = req.body;
-    const userId = req.user._id;
+    const { tool, args, userId: bodyUserId } = req.body;
+    
+    // Get userId from either JWT (user flow) or body (cron flow)
+    const userId = req.user?._id || bodyUserId;
+    
+    if (!userId) {
+      return res.status(400).json({
+        error: "userId not found - check authentication"
+      });
+    }
 
+    // Get JWT if available (user flow)
     const jwt =
       req.headers.authorization?.replace("Bearer ", "") ||
       req.cookies?.accessToken;
@@ -106,7 +120,7 @@ const executeAgentTool=asyncHandler(async (req, res)=> {
       tool,
       args,
       userId,
-      jwt
+      jwt: jwt || null 
     });
 
     return res.json(result);

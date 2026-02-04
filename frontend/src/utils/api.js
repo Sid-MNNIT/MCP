@@ -137,6 +137,23 @@ export const unsaveJob = async (jobId) => {
 
   return res.json();
 }
+
+/**
+ * Rank jobs by relevance (requires login)
+ */
+export const rankJobsByRelevance = async (jobs) => {
+  const res = await fetch(`${BASE_URL}/jobs/rank`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ jobs }),
+  });
+
+  return res.json();
+};
+
 export const startGmailSync = () => {
 
   window.location.href = "http://localhost:5000/sync/google/gmail";

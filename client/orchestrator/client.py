@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 import os
 
 from client.mcp.client import get_mcp_client
@@ -8,6 +9,7 @@ from client.orchestrator.job_agent import (
     search_jobs_pipeline,
     get_personalized_recommendations_hybrid,
     fetch_job_categories,
+     rank_jobs_by_relevance,
 )
 
 # ✅ NEW: import resume pipeline
@@ -25,17 +27,64 @@ if not SERVICE_KEY:
 # ---------------------------
 # JWT middleware (SAFE)
 # ---------------------------
+# ---------------------------
+# ✅ UPDATED: Auth middleware (handles both user & cron)
+# ---------------------------
 @app.middleware("http")
-async def jwt_context_middleware(request: Request, call_next):
-    auth = request.headers.get("authorization")
+async def auth_middleware(request: Request, call_next):
+    """
+    Unified authentication middleware
+    - User requests: JWT authentication
+    - Cron requests: Service key + user ID in header
+    """
+    # Always get source (defaults to "user")
+    source = request.headers.get("X-Request-Source", "user")
+    
+    # Verify service key for ALL requests
+    service_key = request.headers.get("X-Service-Key")
+    if service_key != SERVICE_KEY:
+        return JSONResponse(
+            {"error": "Invalid service key"}, 
+            status_code=401
+        )
+    
+    # Initialize state
     request.state.jwt = None
-
-    if auth and auth.startswith("Bearer "):
-        request.state.jwt = auth[7:].strip()
-
+    request.state.user_id = None
+    request.state.source = source
+    
+    if source == "cron":
+        # CRON: Get userId from header (no JWT needed)
+        user_id = request.headers.get("X-User-Id")
+        if not user_id:
+            return JSONResponse(
+                {"error": "X-User-Id header missing for cron request"}, 
+                status_code=400
+            )
+        request.state.user_id = user_id
+        print(f"🤖 [CRON] Request for user: {user_id}")
+        
+    elif source == "user":
+        # USER: Extract and validate JWT
+        auth = request.headers.get("Authorization")
+        if auth and auth.startswith("Bearer "):
+            jwt_token = auth[7:].strip()
+            request.state.jwt = jwt_token
+            # Note: Actual JWT validation happens in individual pipelines
+            # You could add JWT decode here to set user_id if needed
+        else:
+            # Some endpoints might not require JWT (like health checks)
+            # We'll let individual endpoints enforce JWT requirement
+            pass
+    
+    else:
+        return JSONResponse(
+            {"error": f"Invalid X-Request-Source: {source}"}, 
+            status_code=400
+        )
+    
     response = await call_next(request)
     return response
-
 
 # ---------------------------
 # MCP executor
@@ -131,19 +180,32 @@ async def email_sync(request: Request):
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized service")
 
-    jwt = request.state.jwt
-    if not jwt:
-        raise HTTPException(status_code=401, detail="JWT missing")
-
-    print(jwt, "APP>POST/PIPELINE EMAIL SYNC")
-
-    result = await ingest_and_store_emails(jwt)
+    source = request.state.source
+    
+    if source == "user":
+        # USER flow: requires JWT
+        jwt = request.state.jwt
+        if not jwt:
+            raise HTTPException(status_code=401, detail="JWT missing")
+        
+        print(f"👤 [USER] Email sync with JWT")
+        result = await ingest_and_store_emails(jwt=jwt)
+    
+    elif source == "cron":
+        # CRON flow: no JWT, uses user_id from header
+        user_id = request.state.user_id
+        print(f"🤖 [CRON] Email sync for user: {user_id}")
+        
+        # Pass None for JWT, user_id separately - MCP handles OAuth fetch
+        result = await ingest_and_store_emails(jwt=None, user_id=user_id)
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source")
 
     return {
         "status": "ok",
         "synced": len(result)
     }
-
 # ============================================================
 # JOB PIPELINES
 # ============================================================
@@ -213,6 +275,42 @@ async def job_recommendations_pipeline_endpoint(request: Request):
     )
 
     print(f"📤 Recommendations response: success={result.get('success')}, count={result.get('count', 0)}")
+
+    return result
+
+@app.post("/pipelines/rank-jobs")
+async def rank_jobs_pipeline_endpoint(request: Request):
+    """
+    Rank search results by relevance for logged-in users.
+    Lightweight ranking (rule-based only for speed).
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    user_id = body.get("userId")
+    jobs = body.get("jobs", [])
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
+    
+    if not jobs:
+        return {"success": True, "jobs": []}
+
+    print(f"📥 Rank jobs request: {len(jobs)} jobs for user={user_id}")
+
+    result = await rank_jobs_by_relevance(
+        jobs=jobs,
+        user_id=user_id,
+        jwt=jwt,
+    )
+
+    print(f"📤 Rank jobs response: success={result.get('success')}")
 
     return result
 

@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-import requests
+import httpx  # Use httpx instead of requests for async
 import os
 import re
 import time
@@ -41,11 +41,11 @@ def normalize(text: str) -> str:
 
 
 # -------------------------------------------------
-# MCP TOOLS
+# MCP TOOLS (NOW ASYNC)
 # -------------------------------------------------
 
 @mcp.tool()
-def search_jobs(
+async def search_jobs(
     keywords: str,
     country: str = "in",
     where: str = "",
@@ -83,9 +83,11 @@ def search_jobs(
         params["where"] = where
 
     try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        payload = response.json()
+        # Use httpx async client
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            payload = response.json()
 
         jobs = []
         for job in payload.get("results", []):
@@ -121,16 +123,22 @@ def search_jobs(
 
         return result
 
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         return {
             "success": False,
             "error": f"Adzuna request failed: {str(e)}",
             "jobs": []
         }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Unexpected error: {str(e)}",
+            "jobs": []
+        }
 
 
 @mcp.tool()
-def get_job_categories(country: str = "in"):
+async def get_job_categories(country: str = "in"):
     """
     Fetch available job categories from Adzuna.
     """
@@ -141,12 +149,12 @@ def get_job_categories(country: str = "in"):
     url = f"{BASE_URL}/{country}/categories"
 
     try:
-        response = requests.get(
-            url,
-            params={"app_id": ADZUNA_APP_ID, "app_key": ADZUNA_API_KEY},
-            timeout=10
-        )
-        response.raise_for_status()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                url,
+                params={"app_id": ADZUNA_APP_ID, "app_key": ADZUNA_API_KEY}
+            )
+            response.raise_for_status()
 
         return {
             "success": True,
@@ -165,6 +173,7 @@ def filter_jobs_by_skills(
 ):
     """
     Filter and rank jobs based on resume skills.
+    This is CPU-bound, so it stays synchronous.
     """
 
     matched_jobs = []
