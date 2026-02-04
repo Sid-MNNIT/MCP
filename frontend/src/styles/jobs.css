@@ -69,8 +69,8 @@
 
 .jobs-content-grid {
   display: grid;
-  /* Default: Compact 3-column for large screens only */
-  grid-template-columns: 240px 1fr 0px; 
+  /* INCREASED FROM 240px TO 280px */
+  grid-template-columns: 280px 1fr 0px; 
   gap: 20px;
   align-items: start;
   max-width: 1600px;
@@ -80,8 +80,8 @@
 }
 
 .jobs-content-grid.details-open {
-  /* When details open on large screens */
-  grid-template-columns: 240px 1fr 380px;
+  /* INCREASED FROM 240px TO 280px */
+  grid-template-columns: 280px 1fr 380px;
 }
 
 /* ========================================= */
@@ -632,9 +632,24 @@
   font-size: 24px; 
   font-weight: 700; 
   color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-.job-details-title { font-size: 19px; font-weight: 800; color: var(--text-primary); margin: 0 0 6px; line-height: 1.2; }
-.job-details-company-name { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin: 0; }
-.job-details-location { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+.job-details-title { 
+  font-size: 19px; 
+  font-weight: 800; 
+  color: var(--text-primary); 
+  margin: 0 0 6px; 
+  line-height: 1.2; 
+}
+.job-details-company-name { 
+  font-size: 13px; 
+  color: var(--text-secondary); 
+  font-weight: 600; 
+  margin: 0; 
+}
+.job-details-location { 
+  font-size: 11.5px; 
+  color: var(--text-muted); 
+  margin-top: 3px; 
+}
 .job-details-actions { display: flex; gap: 10px; margin-top: 18px; }
 .btn-save-large { padding: 9px 15px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 9px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
 .btn-save-large:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
@@ -697,22 +712,26 @@
 /* Large Desktop (1400px+) */
 @media (min-width: 1400px) {
   .jobs-content-grid {
-    grid-template-columns: 250px 1fr 0px;
+    /* INCREASED FROM 250px TO 280px */
+    grid-template-columns: 280px 1fr 0px;
     gap: 22px;
   }
   .jobs-content-grid.details-open {
-    grid-template-columns: 250px 1fr 400px;
+    /* INCREASED FROM 250px TO 280px */
+    grid-template-columns: 280px 1fr 400px;
   }
 }
 
 /* Standard Desktop (1280px - 1400px) */
 @media (max-width: 1400px) and (min-width: 1280px) {
   .jobs-content-grid {
-    grid-template-columns: 230px 1fr 0px;
+    /* INCREASED FROM 230px TO 280px (kept wide) */
+    grid-template-columns: 280px 1fr 0px;
     gap: 18px;
   }
   .jobs-content-grid.details-open {
-    grid-template-columns: 220px 1fr 360px;
+    /* INCREASED FROM 220px TO 280px */
+    grid-template-columns: 280px 1fr 360px;
   }
 }
 

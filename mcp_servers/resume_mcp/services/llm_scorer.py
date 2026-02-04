@@ -1,5 +1,5 @@
 """
-LLM Scorer (Hugging Face backed)
+LLM Scorer
 """
 
 class LLMScorer:

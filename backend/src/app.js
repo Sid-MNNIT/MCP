@@ -33,6 +33,8 @@ import googleSyncRoutes from "./routes/google_sync.route.js";
 import jobsRouter from "./routes/jobs.route.js";
 import calendarRouter from "./routes/calendar.route.js";
 import profileRoutes from "./routes/profile.route.js";
+import resumeRouter from "./routes/resume.route.js";
+
 // --------------------
 // Route mounting
 // --------------------
@@ -47,6 +49,7 @@ app.use("/api/jobs", jobsRouter);
 // emails CRUD
 app.use("/api/emails", emailRoutes);
 
+app.use("/api/resume", resumeRouter);
 
 
 // 🔐 INTERNAL SERVICE ROUTES (VERY IMPORTANT)

@@ -1,5 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 import base64
+import json
+import re
 
 from services.pdf_loader import extract_text_from_pdf
 from pipelines.extract_pipeline import extract_resume
@@ -40,10 +42,48 @@ def parse_resume(file_b64: str):
         }
 
     # -----------------------------
+    # Normalize base64 input
+    # -----------------------------
+    try:
+        raw = file_b64.strip()
+
+        # Case 1: some clients paste JSON inside the field by mistake:
+        #   {"file_b64":"...."}
+        # We support that too to prevent integration pain.
+        if raw.startswith("{") and raw.endswith("}"):
+            try:
+                obj = json.loads(raw)
+                if isinstance(obj, dict) and "file_b64" in obj:
+                    raw = str(obj["file_b64"]).strip()
+            except Exception:
+                # if JSON parsing fails, ignore and continue
+                pass
+
+        # Case 2: data URL prefix:
+        # data:application/pdf;base64,JVBERi0x...
+        if raw.lower().startswith("data:"):
+            # split at first comma
+            parts = raw.split(",", 1)
+            raw = parts[1].strip() if len(parts) == 2 else raw
+
+        # Case 3: remove ALL whitespace/newlines/tabs
+        # base64 is allowed to have whitespace in many encoders.
+        raw = re.sub(r"\s+", "", raw)
+
+        file_b64_clean = raw
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": "NORMALIZATION_FAILED",
+            "message": str(e),
+        }
+
+    # -----------------------------
     # Decode base64 → pdf bytes
     # -----------------------------
     try:
-        pdf_bytes = base64.b64decode(file_b64, validate=True)
+        pdf_bytes = base64.b64decode(file_b64_clean, validate=True)
     except Exception:
         return {
             "status": "error",
@@ -96,24 +136,6 @@ def parse_resume(file_b64: str):
 # ==================================================
 @mcp.tool()
 def ats_score(parsed_resume: dict, use_llm: bool = False):
-    """
-    MCP Tool: Score a parsed resume.
-
-    Inputs:
-      - parsed_resume: output from parse_resume
-      - use_llm: whether to run Hugging Face LLM feedback
-
-    Output:
-      {
-        "status": "ok",
-        "result": {
-          "final_score": number,
-          "ats": {...},
-          "llm_feedback": [...]
-        }
-      }
-    """
-
     if not isinstance(parsed_resume, dict):
         return {
             "status": "error",
@@ -137,7 +159,6 @@ def ats_score(parsed_resume: dict, use_llm: bool = False):
     }
 
 
-# HEALTH CHECK
 @mcp.tool()
 def ping():
     return "pong"

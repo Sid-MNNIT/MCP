@@ -8,9 +8,6 @@ export default function Auth() {
 
   return (
     <div className="auth-container">
-      {/* Removed the Left Image Section.
-         Now essentially a centered single-column layout.
-      */}
 
       <div className="auth-right">
         {isLoginView ? (

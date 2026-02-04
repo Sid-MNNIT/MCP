@@ -271,7 +271,7 @@ async def resume_parse_pipeline_endpoint(request: Request):
         mimetype=body.get("mimetype", "application/pdf"),
     )
 
-    print(f"📤 Resume parse response: success={result.get('success')}")
+    print(f" Resume parse response: success={result.get('success')}")
 
     
     return result

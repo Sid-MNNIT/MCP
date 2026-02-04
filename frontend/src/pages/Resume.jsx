@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import TopHeader from "../components/layout/TopHeader";
-import { getCurrentUser } from "../utils/api";
+import { getCurrentUser, uploadResume, getMyResume, getResumeFileUrl } from "../utils/api";
 
 import "../styles/dashboard.css";
 import "../styles/resume.css";
@@ -12,11 +12,22 @@ import ResumeMetadata from "../components/resume/ResumeMetadata";
 
 export default function Resume() {
   const [user, setUser] = useState(null);
+
+  // this is the local file user selects (actual File object)
   const [uploadedFile, setUploadedFile] = useState(null);
+
+  // resume metadata stored in DB
+  const [resumeMeta, setResumeMeta] = useState(null);
+
   const [scoreData, setScoreData] = useState(null);
   const [metadataData, setMetadataData] = useState(null);
-  const [isCalculating, setIsCalculating] = useState(false);
 
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isLoadingResume, setIsLoadingResume] = useState(false);
+
+  // ----------------------------
+  // Load user
+  // ----------------------------
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -29,10 +40,61 @@ export default function Resume() {
     loadUser();
   }, []);
 
+  // ----------------------------
+  // Load existing resume from backend on page open
+  // ----------------------------
+  useEffect(() => {
+    const loadResume = async () => {
+      setIsLoadingResume(true);
+      try {
+        const res = await getMyResume();
+
+        // Your backend sends ApiResponse
+        const payload = res?.data;
+
+        if (!payload?.hasResume) {
+          setResumeMeta(null);
+          setScoreData(null);
+          setMetadataData(null);
+          return;
+        }
+
+        setResumeMeta(payload.resume || null);
+
+        // Map backend → UI shapes
+        const score = payload.score || null;
+        const parsed = payload.parsed_resume || null;
+
+        if (score) setScoreData(score);
+
+        // UI expects { entities: {...} }
+        if (parsed?.entities) {
+          setMetadataData({ entities: parsed.entities });
+        } else if (parsed?.result?.entities) {
+          // fallback if structure differs
+          setMetadataData({ entities: parsed.result.entities });
+        } else {
+          setMetadataData(null);
+        }
+      } catch (err) {
+        console.error("Failed to load resume:", err);
+      } finally {
+        setIsLoadingResume(false);
+      }
+    };
+
+    loadResume();
+  }, []);
+
+  // ----------------------------
+  // File selection
+  // ----------------------------
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setUploadedFile(file);
+
+      // reset old results until upload
       setScoreData(null);
       setMetadataData(null);
     } else {
@@ -40,6 +102,9 @@ export default function Resume() {
     }
   };
 
+  // ----------------------------
+  // Upload + parse
+  // ----------------------------
   const handleCalculate = async () => {
     if (!uploadedFile) {
       alert("Please upload a resume first!");
@@ -48,71 +113,40 @@ export default function Resume() {
 
     setIsCalculating(true);
 
-    // TODO: Replace with actual API call to resume MCP
-    setTimeout(() => {
-      setScoreData({
-        final_score: 78,
-        ats: {
-          total_score: 78,
-          breakdown: {
-            contact: 15,
-            experience: 18,
-            skills: 20,
-            education: 12,
-            format: 13,
-          },
-        },
-        llm_feedback: [
-          {
-            type: "success",
-            text: "Strong technical skills section with relevant keywords",
-          },
-          {
-            type: "warning",
-            text: "Experience descriptions could be more quantitative",
-          },
-          {
-            type: "error",
-            text: "Missing leadership and management keywords",
-          },
-          {
-            type: "success",
-            text: "Clear and well-structured education section",
-          },
-        ],
-      });
+    try {
+      const res = await uploadResume(uploadedFile);
+      const payload = res?.data;
 
-      setMetadataData({
-        entities: {
-          skills: [
-            "Python",
-            "Flask",
-            "FastAPI",
-            "PostgreSQL",
-            "Redis",
-            "Docker",
-            "Kubernetes",
-            "Git",
-            "AWS",
-            "MongoDB",
-            "React",
-            "Node.js",
-          ],
-          experience_years: 3,
-          companies: ["Alpha Technologies", "Beta Corp", "Gamma Solutions"],
-          education_count: 1,
-          certifications_count: 2,
-        },
-      });
+      if (!payload) throw new Error("Invalid response from backend");
 
+      // store metadata for showing on UI
+      setResumeMeta(payload.resume || null);
+
+      // score directly matches ATSScore.jsx expectation
+      setScoreData(payload.score || null);
+
+      // parsed_resume contains entities
+      const parsed = payload.parsed_resume || {};
+      setMetadataData(parsed?.entities ? { entities: parsed.entities } : null);
+
+      // keep uploadedFile OR clear it - your choice
+      // setUploadedFile(null);
+    } catch (err) {
+      console.error(err);
+      alert("Resume upload/parse failed. Check console for details.");
+    } finally {
       setIsCalculating(false);
-    }, 2000);
+    }
   };
 
   const handleRemoveFile = () => {
     setUploadedFile(null);
     setScoreData(null);
     setMetadataData(null);
+  };
+
+  const handleOpenResume = () => {
+    window.open(getResumeFileUrl(), "_blank");
   };
 
   return (
@@ -126,6 +160,21 @@ export default function Resume() {
         />
 
         <div className="resume-container">
+          {/* Show existing resume open button if resume exists */}
+          {resumeMeta && (
+            <div className="resume-open-banner" style={{ marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <strong>Saved Resume:</strong> {resumeMeta.filename}
+                  {isLoadingResume && <span style={{ marginLeft: 10 }}>(loading...)</span>}
+                </div>
+                <button className="btn-replace" onClick={handleOpenResume}>
+                  Open PDF
+                </button>
+              </div>
+            </div>
+          )}
+
           <ResumeUpload
             uploadedFile={uploadedFile}
             onUpload={handleFileUpload}

@@ -158,11 +158,6 @@ const handleReply = (email) => {
 
   setIsComposeOpen(true);
 };
-
-
-
-  
-  
 const handleGenerateAiReply = async (email) => {
   try {
     console.log("🟢 AI click email:", email); // ✅ keep for debug

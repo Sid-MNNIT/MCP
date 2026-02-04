@@ -15,7 +15,7 @@ class ResumeService {
         throw new Error("file_b64 is required");
       }
 
-      // ✅ Pipeline mode (team-lead style)
+      // ✅ Pipeline mode 
       return await callMCP({
         endpoint: "/pipelines/resume-parse",
         args: {
