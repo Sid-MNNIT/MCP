@@ -1,6 +1,25 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import "../../styles/dashboard.css"; // Uses your existing dashboard.css
+import {
+  LayoutDashboard,
+  FileText,
+  BriefcaseBusiness,
+  Mail,
+  Sparkles,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import "../../styles/dashboard.css";
+
+const NAV_ITEMS = [
+  { to: "/dashboard", icon: LayoutDashboard,    label: "Dashboard" },
+  { to: "/resume",    icon: FileText,            label: "Resume"    },
+  { to: "/jobs",      icon: BriefcaseBusiness,   label: "Jobs"      },
+  { to: "/emails",    icon: Mail,                label: "Emails"    },
+  { to: "/ask-ai",    icon: Sparkles,            label: "Ask AI"    },
+  { to: "/settings",  icon: Settings,            label: "Settings"  },
+];
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -9,68 +28,30 @@ export default function Sidebar() {
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-top">
         <span className="sidebar-logo">Jobsy</span>
-
         <button
           className="sidebar-toggle"
           onClick={() => setCollapsed(!collapsed)}
           aria-label="Toggle sidebar"
         >
-          ☰
+          {collapsed
+            ? <ChevronRight size={17} strokeWidth={2.5} />
+            : <ChevronLeft  size={17} strokeWidth={2.5} />}
         </button>
       </div>
 
       <nav className="sidebar-nav">
-        {/* DASHBOARD */}
-        <NavLink 
-          to="/dashboard" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">🏠</span>
-          <span className="label">Dashboard</span>
-        </NavLink>
-
-        
-
-        {/* Placeholders for other routes */}
-        <NavLink 
-          to="/resume" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">📄</span>
-          <span className="label">Resume</span>
-        </NavLink>
-
-        <NavLink 
-          to="/jobs" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">💼</span>
-          <span className="label">Jobs</span>
-        </NavLink>
-
-        <NavLink 
-          to="/emails" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">✉️</span>
-          <span className="label">Emails</span>
-        </NavLink>
-
-        <NavLink 
-          to="/ask-ai" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">🤖</span>
-          <span className="label">Ask AI</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/settings" 
-          className={({ isActive }) => isActive ? "active" : ""}
-        >
-          <span className="icon">⚙️</span>
-          <span className="label">Settings</span>
-        </NavLink>
+        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            <span className="icon">
+              <Icon size={18} strokeWidth={2} />
+            </span>
+            <span className="label">{label}</span>
+          </NavLink>
+        ))}
       </nav>
     </aside>
   );

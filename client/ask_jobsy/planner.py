@@ -49,6 +49,25 @@ def _find_missing_args(pipeline_name: str, args: Dict[str, Any]) -> List[str]:
 # Main planner
 # -------------------------------------------------
 
+def _build_profile_prompt(metadata: Dict[str, Any]) -> str:
+    p = metadata.get("user_profile", {})
+    if not p:
+        return "No user profile available."
+
+    lines = []
+    if p.get("fullname"):       lines.append(f"Name: {p['fullname']}")
+    if p.get("age"):            lines.append(f"Age: {p['age']}")
+    if p.get("headline"):       lines.append(f"Headline: {p['headline']}")
+    if p.get("current_role"):   lines.append(f"Current role: {p['current_role']} at {p.get('current_company', '')}")
+    if p.get("latest_degree"): lines.append(f"Education: {p['latest_degree']} — {p.get('latest_institution', '')}")
+    if p.get("skills"):         lines.append(f"Skills: {', '.join(p['skills'])}")
+    if p.get("location_string"): lines.append(f"Location: {p['location_string']}")
+    if p.get("open_to_work"):   lines.append("Status: Open to work")
+    if p.get("about"):          lines.append(f"About: {p['about']}")
+
+    return "\n".join(lines) if lines else "No user profile available."
+
+
 async def planner_decide(
     user_message: str,
     conversation_context: Optional[List[Dict[str, Any]]] = None,
@@ -63,6 +82,7 @@ async def planner_decide(
 
     registry_prompt = _build_registry_prompt()
     context_prompt = _build_context_prompt(conversation_context)
+    profile_prompt = _build_profile_prompt(metadata)
 
     system_prompt = f"""
 You are Jobsy Planner, a strict routing agent.
@@ -80,11 +100,24 @@ RULES (DO NOT BREAK)
 4. If intent matches a pipeline, return ACTION
    EVEN IF required arguments are missing.
 5. Choose EXACTLY ONE pipeline for ACTION.
+6. "show me", "give me", "what did X send", "contents of", "read my email"
+   → ALWAYS use email_query pipeline, NEVER CHAT.
+7. "summary", "overview", "briefing", "what happened"
+   → ALWAYS use email_digest pipeline.
+8. "draft a reply", "write a reply", "respond to"
+   → ALWAYS use email_reply_preview pipeline.
+9. For email_query, extract the sender company name into args.sender
+   (e.g. "desmus and co" → sender: "desmus", "amazon" → sender: "amazon").
 
 --------------------------------------------------
 AVAILABLE PIPELINES
 --------------------------------------------------
 {registry_prompt}
+
+--------------------------------------------------
+USER PROFILE (use this to auto-fill args when user says "for me", "based on my profile", or doesn't specify keywords/location)
+--------------------------------------------------
+{profile_prompt}
 
 --------------------------------------------------
 CONVERSATION CONTEXT
@@ -134,6 +167,46 @@ User: Reply to the recruiter email
   "args": {{}},
   "confidence": 0.7,
   "reasoning": "User wants to reply to an email but did not specify message ID."
+}}
+
+User: Show me my desmus&co email / give me the contents of my desmus and co email / what did amazon send me
+{{
+  "type": "ACTION",
+  "pipeline": "email_query",
+  "args": {{"sender": "desmus"}},
+  "confidence": 0.92,
+  "reasoning": "User wants to read/view an email from a specific sender. Use email_query with the sender keyword."
+}}
+
+User: Show me my offer emails / list my interview emails / any rejection emails?
+{{
+  "type": "ACTION",
+  "pipeline": "email_query",
+  "args": {{"type": "OFFER"}},
+  "confidence": 0.92,
+  "reasoning": "User wants to see emails filtered by type. Use email_query with the type field."
+}}
+
+User: What emails did I receive this week? / Show me all my emails
+{{
+  "type": "ACTION",
+  "pipeline": "email_digest",
+  "args": {{"period": "week"}},
+  "confidence": 0.9,
+  "reasoning": "User wants a summary/overview of emails. Use email_digest."
+}}
+
+User: Find jobs for me (profile has skills: ["React", "Node.js"], location: "Bangalore, India")
+{{
+  "type": "ACTION",
+  "pipeline": "job_search",
+  "args": {{
+    "keywords": "React Node.js",
+    "location": "Bangalore",
+    "country": "in"
+  }},
+  "confidence": 0.92,
+  "reasoning": "User wants jobs matched to their profile. Used skills as keywords and profile location."
 }}
 
 Respond with JSON ONLY.

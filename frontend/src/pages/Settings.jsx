@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import TopHeader from "../components/layout/TopHeader";
 import { getGmailStatus, disconnectGmail, reconnectGmail } from "../utils/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import "../styles/dashboard.css";
 
 export default function Settings() {
@@ -9,6 +10,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const fullName = useCurrentUser();
 
   useEffect(() => {
     const load = async () => {
@@ -45,7 +47,7 @@ export default function Settings() {
     <div className="dashboard-shell">
       <Sidebar />
       <main className="dashboard-root">
-        <TopHeader title="Settings" hideGreeting={true} />
+        <TopHeader title="Settings" hideGreeting={true} fullName={fullName} />
 
         <div style={{ maxWidth: 600 }}>
 

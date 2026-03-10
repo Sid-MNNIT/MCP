@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { X, Sparkles, SendHorizonal } from "lucide-react";
 
 export default function ComposeModal({
   onClose,
@@ -6,14 +7,12 @@ export default function ComposeModal({
   onAskAi,
   onSend,
   isAiLoading,
-  isSending
-
+  isSending,
 }) {
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
-  // 🔥 Sync with parent updates (AI paste fix)
   useEffect(() => {
     if (initialData) {
       setTo(initialData.to || "");
@@ -26,74 +25,80 @@ export default function ComposeModal({
     <div className="compose-overlay">
       <div className="compose-window">
 
-        {/* HEADER */}
+        {/* ── Header ── */}
         <div className="compose-header">
           <span className="compose-title">New Message</span>
-          <button className="icon-btn-close" onClick={onClose}>✕</button>
+          <button className="icon-btn-close" onClick={onClose}>
+            <X size={18} strokeWidth={2} />
+          </button>
         </div>
 
-        {/* TO + SUBJECT */}
+        {/* ── To / Subject ── */}
         <div className="compose-inputs">
           <div className="input-row">
-            <span className="input-label">To:</span>
+            <span className="input-label">To</span>
             <input
               className="clean-input"
               value={to}
               onChange={(e) => setTo(e.target.value)}
+              placeholder="recipient@example.com"
             />
           </div>
-
           <div className="input-row">
-            <span className="input-label">Subject:</span>
+            <span className="input-label">Subject</span>
             <input
               className="clean-input"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
+              placeholder="Enter subject…"
             />
           </div>
         </div>
 
-        {/* BODY */}
+        {/* ── Body ── */}
         <textarea
           className="compose-body"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Start writing here..."
+          placeholder="Start writing here…"
         />
 
-        {/* FOOTER */}
+        {/* ── Footer ── */}
         <div className="compose-footer">
-          <div className="footer-left">
-            <button
-              className="btn-ai-magic"
-              onClick={onAskAi}
-              disabled={isAiLoading}
-            >
-              {isAiLoading ? "✨ Writing..." : "✨ Ask AI to Write"}
-            </button>
-          </div>
+          <button
+            className="btn-ai-magic"
+            onClick={onAskAi}
+            disabled={isAiLoading}
+          >
+            <Sparkles size={14} strokeWidth={2.5} />
+            {isAiLoading ? "Writing…" : "Ask AI to Write"}
+          </button>
 
-          <div className="footer-right">
-            <button className="btn-ghost" onClick={onClose}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              className="btn-secondary"
+              onClick={onClose}
+              style={{ padding: "9px 16px", fontSize: 13.5 }}
+            >
               Discard
             </button>
 
- <button
-  className="btn-send-primary"
-  disabled={isSending}
-  onClick={() =>
-    onSend({
-      to,
-      subject,
-      body,
-      threadId: initialData.threadId,
-      in_reply_to: initialData.in_reply_to
-    })
-  }
->
-  {isSending ? "Sending…" : "Send Email →"}
-</button>
-
+            <button
+              className="btn-send-primary"
+              disabled={isSending}
+              onClick={() =>
+                onSend({
+                  to,
+                  subject,
+                  body,
+                  threadId: initialData?.threadId,
+                  in_reply_to: initialData?.in_reply_to,
+                })
+              }
+            >
+              <SendHorizonal size={15} strokeWidth={2.5} />
+              {isSending ? "Sending…" : "Send"}
+            </button>
           </div>
         </div>
 

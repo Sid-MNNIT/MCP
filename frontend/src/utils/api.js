@@ -272,6 +272,20 @@ export const sendAiReply = async (draft) => {
 };
 
 
+export const getEmailStats = async () => {
+  const res = await fetch(`${BASE_URL}/emails/fetch-email?sent=false`, {
+    credentials: "include",
+  });
+  const data = await res.json();
+  const emails = data.emails || [];
+
+  return {
+    interviews: emails.filter(e => e.type === "INTERVIEW").length,
+    rejections: emails.filter(e => e.type === "REJECTION").length,
+    assessments: emails.filter(e => e.type === "JOB" || e.type === "OTHER").length,
+  };
+};
+
 export const syncEmails = async () => {
   const res = await fetch(`${BASE_URL}/emails/email-sync`, {
     method: "POST",
@@ -292,6 +306,20 @@ export const syncEmails = async () => {
 
 //profile apis
 //Get logged-in user's profile
+export const uploadAvatar = async (file) => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await fetch(`${BASE_URL}/profile/me/avatar`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error("Failed to upload avatar");
+  return res.json();
+};
+
 export const getMyProfile = async () => {
   const res = await fetch(`${BASE_URL}/profile/me`, {
     credentials: "include",

@@ -91,6 +91,9 @@ INTENT_PHRASES = [
     "shortlisted",
     "offer letter",
     "we are pleased to offer",
+    "we are happy to offer",
+    "happy to offer you",
+    "pleased to extend an offer",
 
     "we regret to inform",
     "not selected",

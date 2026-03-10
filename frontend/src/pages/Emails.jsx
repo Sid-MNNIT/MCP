@@ -14,6 +14,7 @@ import AiReplyPreviewModal from "../components/emails/AiReplyPreviewModal.jsx"
 import "../styles/dashboard.css";
 import "../styles/email.css";
 import { getEmails,getSentEmails,getStarredEmails,toggleStarEmail,generateAiReplyPreview,sendAiReply,syncEmails,deleteEmail } from "../utils/api.js";
+import { useCurrentUser } from "../hooks/useCurrentUser.js";
 
 export default function Emails() {
 
@@ -40,6 +41,7 @@ export default function Emails() {
 
   //Sending reply
   const [isSending, setIsSending] = useState(false);
+  const fullName = useCurrentUser();
 
 
 
@@ -198,7 +200,7 @@ const handleGenerateAiReply = async (email) => {
       <div className="dashboard-shell">
         <Sidebar />
         <main className="dashboard-root">
-          <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
+          <TopHeader title="Emails" hideGreeting={true} fullName={fullName} />
           <p style={{ padding: "1rem" }}>Loading emails…</p>
         </main>
       </div>
@@ -280,7 +282,7 @@ const handleShowStarred = async () => {
     <div className="dashboard-shell">
       <Sidebar />
       <main className="dashboard-root">
-        <TopHeader title="Emails" hideGreeting={true} fullName="Priyangshu Ghosh" />
+        <TopHeader title="Emails" hideGreeting={true} fullName={fullName} />
 
         <div className={`email-container ${selectedEmail ? "split-view" : ""}`}>
 

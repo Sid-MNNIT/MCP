@@ -3,10 +3,78 @@ from typing import Optional, Dict, Any
 from client.ask_jobsy.planner import planner_decide
 from client.ask_jobsy.executor import run_pipeline
 from client.ask_jobsy.validator import validate_plan
+from client.ask_jobsy.profile_fetcher import fetch_user_profile
+import httpx
+import os
+
+NODE_API = os.getenv("NODE_API_URL", "http://localhost:5000")
 from client.ask_jobsy.memory import (
     get_conversation_context,
     save_conversation_turn,
 )
+
+
+# -------------------------------------------------
+# Helper: resolve messageId from sender keyword
+# -------------------------------------------------
+
+async def _resolve_message_id(user_message: str, jwt: str) -> str | None:
+    """
+    Uses Groq to extract the sender/company keyword from the user message,
+    then queries the inbox to find the matching email's Gmail emailId.
+    """
+    from client.backend_client.email_query_api import query_emails_from_db
+    from client.llm.groq_client import get_groq_client
+    import asyncio
+
+    # Step 1: Use Groq to extract just the sender/company name
+    try:
+        groq = get_groq_client()
+        extraction = await asyncio.to_thread(
+            groq.chat.completions.create,
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract only the company or sender name from the user's message. "
+                        "Return ONLY the name, nothing else. No punctuation, no explanation. "
+                        "Examples:\n"
+                        "'draft reply for amazon email' -> 'amazon'\n"
+                        "'reply to desmus and co' -> 'desmus'\n"
+                        "'respond to shona labs interview' -> 'shona labs'\n"
+                        "'draft a reply for my desmus and co gmail' -> 'desmus'"
+                    )
+                },
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0,
+            max_tokens=20,
+        )
+        keyword = extraction.choices[0].message.content.strip().lower()
+        print(f"🔵 Groq extracted sender keyword: '{keyword}'")
+    except Exception as e:
+        print(f"⚠️ Groq keyword extraction failed: {e}, falling back to raw message")
+        keyword = user_message
+
+    # Step 2: Query inbox using the clean keyword
+    for attempt in [
+        {"sender": keyword, "folder": "INBOX", "limit": 5},
+        {"keyword": keyword, "folder": "INBOX", "limit": 5},
+        {"keyword": keyword, "limit": 10},
+    ]:
+        try:
+            result = await query_emails_from_db(jwt=jwt, **attempt)
+            emails = result.get("emails", [])
+            if emails:
+                email_id = emails[0].get("emailId")
+                print(f"🟢 Resolved emailId: '{email_id}' from sender '{emails[0].get('from')}'")
+                return email_id
+        except Exception:
+            continue
+
+    print(f"🔴 Could not resolve messageId for keyword: '{keyword}'")
+    return None
 
 
 # -------------------------------------------------
@@ -28,9 +96,12 @@ async def handle_user_message(
 
     metadata = metadata or {}
 
- 
     conversation_context = get_conversation_context(conversation_id)
 
+    # Fetch user profile and inject into metadata for the planner
+    user_profile = await fetch_user_profile(jwt)
+    if user_profile:
+        metadata["user_profile"] = user_profile
 
     plan = await planner_decide(
         user_message=user_message,
@@ -50,6 +121,28 @@ async def handle_user_message(
             for t in conversation_context
         ]
 
+        # Build personalised system prompt from profile
+        p = metadata.get("user_profile", {})
+        if p:
+            name = p.get("fullname", "there")
+            first_name = name.split()[0] if name else "there"
+            age_str = f", {p['age']} years old" if p.get("age") else ""
+            role_str = f" Currently working as {p['current_role']} at {p['current_company']}." if p.get("current_role") else ""
+            edu_str = f" Studied {p['latest_degree']} at {p['latest_institution']}." if p.get("latest_degree") else ""
+            skills_str = f" Skills: {', '.join(p['skills'][:6])}." if p.get("skills") else ""
+            location_str = f" Based in {p['location_string']}." if p.get("location_string") else ""
+            otw_str = " They are currently open to work." if p.get("open_to_work") else ""
+            about_str = f" About them: {p['about']}." if p.get("about") else ""
+
+            personal_context = (
+                f"You are talking to {name}{age_str}.{location_str}{role_str}"
+                f"{edu_str}{skills_str}{otw_str}{about_str}\n"
+                f"Address them by their first name ({first_name}) naturally when appropriate. "
+                f"Use their background to give personalised, relevant advice."
+            )
+        else:
+            personal_context = "You don't have the user's profile yet — be helpful and friendly."
+
         chat_response = client.chat.completions.create(
             model=model,
             messages=[
@@ -59,7 +152,8 @@ async def handle_user_message(
                         "You are Jobsy AI, a friendly and knowledgeable job search assistant. "
                         "Help the user with their job search, career advice, interview tips, "
                         "resume guidance, and anything related to finding a job. "
-                        "Be concise, warm, and helpful."
+                        "Be concise, warm, and helpful.\n\n"
+                        f"USER CONTEXT:\n{personal_context}"
                     ),
                 },
                 *context_messages,
@@ -113,7 +207,24 @@ async def handle_user_message(
         }
 
     # -----------------------------
-    # 5. Execute pipeline
+    # 5. Resolve missing messageId for email_reply_preview
+    # -----------------------------
+    if plan["pipeline"] == "email_reply_preview" and not plan["args"].get("messageId"):
+        resolved_id = await _resolve_message_id(
+            user_message=user_message,
+            jwt=jwt,
+        )
+        if not resolved_id:
+            reply = (
+                "I couldn't find that email in your inbox. "
+                "Could you be more specific — e.g. the subject line or sender's name?"
+            )
+            save_conversation_turn(conversation_id, user_message, reply)
+            return {"response": reply, "conversation_id": conversation_id, "metadata": {"plan": plan}}
+        plan["args"]["messageId"] = resolved_id
+
+    # -----------------------------
+    # 6. Execute pipeline
     # -----------------------------
     result = await run_pipeline(
         pipeline_name=plan["pipeline"],
@@ -123,7 +234,7 @@ async def handle_user_message(
     )
 
     # -----------------------------
-    # 6. Summarize result into human-readable reply
+    # 7. Summarize result into human-readable reply
     # -----------------------------
     from client.llm.openai_client import get_openai_client, get_openai_model
     import json as _json
@@ -142,27 +253,38 @@ async def handle_user_message(
             {
                 "role": "system",
                 "content": (
-                    "You are Jobsy AI, a friendly job search assistant. "
-                    "The user asked a question and a backend pipeline ran and returned data. "
-                    "Summarize the pipeline result in a clear, concise, friendly message for the user. "
-                    "Do not show raw JSON. Highlight the most important information. "
-                    "If it's a list of jobs, summarize the top ones. "
-                    "If it's emails, summarize key details. "
-                    "Keep it conversational and under 300 words."
+                    "You are Jobsy AI, a precise and friendly job search assistant. "
+                    "You will be given raw pipeline result data and must summarize it for the user. "
+                    "\n\n"
+                    "STRICT ACCURACY RULES — YOU MUST FOLLOW THESE:\n"
+                    "1. NEVER invent, infer, or assume any information not explicitly present in the data.\n"
+                    "2. Use EXACT values from the data: sender names, company names, email subjects, counts, dates.\n"
+                    "3. If the data says 'from' is 'Ritvik Rai <rai.ritvik2005@gmail.com>', the sender is 'Ritvik Rai', NOT 'Gmail'.\n"
+                    "4. Only mention things that are ACTUALLY in the data. If there are 0 rejections, do not mention rejections.\n"
+                    "5. If a count is 0, do not say 'no X yet' — simply omit that category entirely.\n"
+                    "6. Do NOT infer application status from email types unless explicitly stated in the data.\n"
+                    "7. For emails: use the 'subject', 'from', and 'type' fields exactly as given.\n"
+                    "8. For jobs: use the exact title, company, salary, and URL from the data.\n"
+                    "\n"
+                    "FORMAT RULES:\n"
+                    "- Be concise, warm, and friendly.\n"
+                    "- Use markdown: bold for names/companies, bullet points for lists.\n"
+                    "- Keep it under 250 words.\n"
+                    "- Never show raw JSON or field names like 'emailId' or '_id'."
                 ),
             },
             {"role": "user", "content": f"User asked: {user_message}"},
-            {"role": "assistant", "content": f"Pipeline result data:\n{result_text}"},
-            {"role": "user", "content": "Now summarize this result in a friendly, readable way."},
+            {"role": "assistant", "content": f"Pipeline result data (use ONLY this data, nothing else):\n{result_text}"},
+            {"role": "user", "content": "Summarize this accurately using only the data above. Do not invent anything."},
         ],
-        temperature=0.5,
+        temperature=0.1,
         max_tokens=600,
     )
 
     human_reply = summary_response.choices[0].message.content.strip()
 
     # -----------------------------
-    # 7. Persist memory
+    # 8. Persist memory
     # -----------------------------
     save_conversation_turn(
         conversation_id=conversation_id,
@@ -171,7 +293,7 @@ async def handle_user_message(
     )
 
     # -----------------------------
-    # 8. Final response
+    # 9. Final response
     # -----------------------------
     return {
         "response": human_reply,

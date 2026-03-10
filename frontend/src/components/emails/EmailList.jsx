@@ -32,10 +32,7 @@ export default function EmailList({
       
       {/* SCROLLABLE LIST */}
       <div className="email-list-scroll">
-        {emails.length === 0 ? (
-          <div className="empty-state">No emails found</div>
-        ) : (
-          emails.map((email) => (
+        {emails.map((email) => (
             <div 
               key={email.id} 
               className={`email-item ${selectedEmail?.id === email.id ? "active" : ""} ${!email.read ? "unread" : ""}`}
@@ -80,7 +77,7 @@ export default function EmailList({
               )}
             </div>
           ))
-        )}
+        }
       </div>
     </div>
   );

@@ -16,14 +16,29 @@ async def prepare_email_reply_preview(
     tone: str,
     jwt: str
 ):
+    print(f"🔵 prepare_email_reply_preview: message_id={message_id}, tone={tone}")
+    # Decode userId from JWT to pass to MCP tool
+    import base64 as _b64, json as _j
+    try:
+        payload_part = jwt.split(".")[1]
+        payload_part += "=" * (4 - len(payload_part) % 4)
+        decoded = _j.loads(_b64.b64decode(payload_part).decode("utf-8"))
+        user_id = decoded.get("_id") or decoded.get("id") or decoded.get("sub")
+    except Exception:
+        user_id = None
+
+    print(f"🔵 Resolved userId from JWT: {user_id}")
+
     result = await execute_tool(
         tool="draft_reply",
         args={
+            "userId": str(user_id) if user_id else "",
             "message_id": message_id,
             "tone": tone
         },
         jwt=jwt
     )
+    print(f"🟢 draft_reply tool result: {result}")
 
     # 🔓 MCP response unwrapping
     if "reply_context" in result:

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import { BotMessageSquare, SendHorizonal, Trash2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import Sidebar from "../components/layout/Sidebar";
 import "../styles/dashboard.css";
 import "../styles/askai.css";
@@ -23,37 +25,83 @@ function TypingDots() {
 
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
+  const content = typeof msg.content === "string"
+    ? msg.content
+    : JSON.stringify(msg.content, null, 2);
+
   return (
     <div className={`ai-message-row ${isUser ? "user" : "assistant"}`}>
       {!isUser && (
         <div className="ai-avatar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
-          </svg>
+          <BotMessageSquare size={15} strokeWidth={2} />
         </div>
       )}
       <div className={`ai-bubble ${isUser ? "user" : "assistant"}`}>
-        {typeof msg.content === "string"
-          ? msg.content
-          : JSON.stringify(msg.content, null, 2)}
+        {isUser ? (
+          content
+        ) : (
+          <ReactMarkdown
+            components={{
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="ai-md-link">
+                  {children}
+                </a>
+              ),
+              p: ({ children }) => <p className="ai-md-p">{children}</p>,
+              strong: ({ children }) => <strong className="ai-md-bold">{children}</strong>,
+              ul: ({ children }) => <ul className="ai-md-ul">{children}</ul>,
+              ol: ({ children }) => <ol className="ai-md-ol">{children}</ol>,
+              li: ({ children }) => <li className="ai-md-li">{children}</li>,
+              h1: ({ children }) => <h1 className="ai-md-h">{children}</h1>,
+              h2: ({ children }) => <h2 className="ai-md-h">{children}</h2>,
+              h3: ({ children }) => <h3 className="ai-md-h3">{children}</h3>,
+              code: ({ children }) => <code className="ai-md-code">{children}</code>,
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        )}
       </div>
       {isUser && <div className="ai-user-avatar">You</div>}
     </div>
   );
 }
 
+const STORAGE_KEY   = "jobsy_ai_messages";
+const CONV_ID_KEY   = "jobsy_ai_conv_id";
+
+const DEFAULT_MSG = {
+  role: "assistant",
+  content: "Hey! I'm Jobsy AI — ask me anything about your job search — emails, interviews, job listings, or career advice.",
+};
+
 export default function AskAI() {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hey! I'm Jobsy AI 👋 Ask me anything about your job search — emails, interviews, job listings, or career advice.",
-    },
-  ]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [DEFAULT_MSG];
+    } catch {
+      return [DEFAULT_MSG];
+    }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversationId] = useState(() => `conv_${Date.now()}`);
+  const [conversationId] = useState(() => {
+    const saved = localStorage.getItem(CONV_ID_KEY);
+    if (saved) return saved;
+    const newId = `conv_${Date.now()}`;
+    localStorage.setItem(CONV_ID_KEY, newId);
+    return newId;
+  });
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Persist messages whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch { /* quota exceeded — silently ignore */ }
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,11 +122,7 @@ export default function AskAI() {
         credentials: "include",
         body: JSON.stringify({
           endpoint: "/ask-jobsy",
-          args: {
-            text: trimmed,
-            conversation_id: conversationId,
-            metadata: {},
-          },
+          args: { text: trimmed, conversation_id: conversationId, metadata: {} },
         }),
       });
 
@@ -91,7 +135,7 @@ export default function AskAI() {
           : JSON.stringify(data.response, null, 2);
 
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Sorry, something went wrong. Please try again." },
@@ -116,26 +160,42 @@ export default function AskAI() {
       <Sidebar />
       <main className="ai-page">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="ai-header">
           <div className="ai-header-left">
             <div className="ai-header-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
-              </svg>
+              <BotMessageSquare size={20} strokeWidth={2} />
             </div>
             <div>
               <h1 className="ai-header-title">Ask Jobsy</h1>
               <span className="ai-header-sub">Your AI job search assistant</span>
             </div>
           </div>
-          <div className="ai-status-pill">
-            <span className="ai-status-dot" />
-            Online
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className="ai-clear-btn"
+              title="Clear chat history"
+              onClick={() => {
+                const fresh = [DEFAULT_MSG];
+                setMessages(fresh);
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(CONV_ID_KEY);
+                // new conv id
+                const newId = `conv_${Date.now()}`;
+                localStorage.setItem(CONV_ID_KEY, newId);
+              }}
+            >
+              <Trash2 size={14} strokeWidth={2} />
+              Clear
+            </button>
+            <div className="ai-status-pill">
+              <span className="ai-status-dot" />
+              Online
+            </div>
           </div>
         </div>
 
-        {/* Messages */}
+        {/* ── Messages ── */}
         <div className="ai-thread">
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} />
@@ -143,9 +203,7 @@ export default function AskAI() {
           {loading && (
             <div className="ai-message-row assistant">
               <div className="ai-avatar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
-                </svg>
+                <BotMessageSquare size={15} strokeWidth={2} />
               </div>
               <div className="ai-bubble assistant">
                 <TypingDots />
@@ -155,7 +213,7 @@ export default function AskAI() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Suggestion Pills — only shown before first message */}
+        {/* ── Suggestion Pills ── */}
         {showSuggestions && (
           <div className="ai-suggestions-bar">
             {SUGGESTIONS.map((s) => (
@@ -166,7 +224,7 @@ export default function AskAI() {
           </div>
         )}
 
-        {/* Input */}
+        {/* ── Input ── */}
         <div className="ai-input-bar">
           <div className="ai-input-wrapper">
             <textarea
@@ -188,10 +246,7 @@ export default function AskAI() {
               onClick={() => sendMessage()}
               disabled={loading || !input.trim()}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
+              <SendHorizonal size={16} strokeWidth={2.5} />
             </button>
           </div>
           <p className="ai-disclaimer">

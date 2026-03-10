@@ -101,13 +101,18 @@ async def email_reply_preview(request: Request):
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
 
-    result = await prepare_email_reply_preview(
-        message_id=message_id,
-        tone=tone,
-        jwt=jwt
-    )
-
-    return result
+    try:
+        result = await prepare_email_reply_preview(
+            message_id=message_id,
+            tone=tone,
+            jwt=jwt
+        )
+        return result
+    except Exception as e:
+        import traceback
+        print(f"❌ email-reply-preview FULL ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/pipelines/email-reply-send")

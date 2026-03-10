@@ -1,5 +1,5 @@
 /* ========================================= */
-/* Global Reset & Layout Safety */
+/* Global Reset & Base                       */
 /* ========================================= */
 
 *,
@@ -14,10 +14,11 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow-x: hidden; /* prevents black right strip */
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
-    "Helvetica Neue", sans-serif;
+  overflow-x: hidden;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -26,14 +27,10 @@ body {
   overflow-x: hidden;
 }
 
-/* ========================================= */
-/* Base Elements */
-/* ========================================= */
-
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a {
@@ -49,13 +46,24 @@ button {
 }
 
 input,
-textarea {
+textarea,
+select {
   font-family: inherit;
-  border-radius: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 10px);
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-color);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 input::placeholder,
@@ -64,34 +72,48 @@ textarea::placeholder {
 }
 
 /* ========================================= */
-/* Utility Classes */
+/* Utility Classes                           */
 /* ========================================= */
 
 .card {
   background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg, 14px);
   box-shadow: var(--shadow-sm);
 }
 
 .btn-primary {
-  background-color: var(--accent-primary);
+  background: var(--accent-gradient);
   color: var(--btn-text);
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: var(--radius-md, 10px);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: var(--shadow-blue);
 }
 
 .btn-primary:hover {
   opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px -4px rgba(29, 78, 216, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 /* ========================================= */
-/* Scrollbar (Clean & Neutral) */
+/* Scrollbars                                */
 /* ========================================= */
 
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -100,5 +122,18 @@ textarea::placeholder {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
-  border-radius: 8px;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ========================================= */
+/* Focus ring (accessibility)                */
+/* ========================================= */
+
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentUser,startGmailSync,getGmailStatus } from "../utils/api";
+import { getCurrentUser, startGmailSync, getGmailStatus, getEmailStats } from "../utils/api";
 import "../styles/dashboard.css";
 
 import TopHeader from "../components/layout/TopHeader";
@@ -7,82 +7,54 @@ import Sidebar from "../components/layout/Sidebar";
 
 import StatusCard from "../components/dashboard/StatusCard";
 import ResumePolishCard from "../components/dashboard/ResumePolishCard";
-import ResumeOverview from "../components/dashboard/ResumeOverview";
-import JobMarketSnapshot from "../components/dashboard/JobMarketSnapshot";
 import RecruiterActivity from "../components/dashboard/RecruiterActivity";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
-import AskJobsy from "../components/dashboard/AskJobsy";
 import CalendarWidget from "../components/dashboard/CalendarWidget";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [gmail,setGmail]=useState({
-    isConnected:false,
-    timestamp:"Not connected"
-  })
+  const [gmail, setGmail] = useState({
+    isConnected: false,
+    timestamp: "Not connected",
+  });
+  const [emailStats, setEmailStats] = useState({ interviews: 0, rejections: 0, assessments: 0 });
 
-  // Fetch current user on component mount
-useEffect(() => {
-  const loadDashboard = async () => {
-    try {
-      const userRes = await getCurrentUser();
-      const gmailRes = await getGmailStatus();
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const userRes = await getCurrentUser();
+        const gmailRes = await getGmailStatus();
+        const statsRes = await getEmailStats();
 
-      setUser(userRes.user);
+        setUser(userRes.user);
+        setEmailStats(statsRes);
 
-      setGmail({
-        isConnected: gmailRes.connected,
-        timestamp: gmailRes.connected
-          ? `Synced ${new Date(gmailRes.lastSync).toLocaleString()}`
-          : "Not connected",
-      });
+        setGmail({
+          isConnected: gmailRes.connected,
+          timestamp: gmailRes.connected
+            ? `Synced ${new Date(gmailRes.lastSync).toLocaleString()}`
+            : "Not connected",
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadDashboard();
+  }, []);
 
-  loadDashboard();
-}, []);
-
-
-  // --- MOCK DATA SOURCE (Replace with Backend Data later) ---
   const data = {
     resume: {
       isParsed: true,
-      timestamp: "Updated 2 hours ago"
+      timestamp: "Updated 2 hours ago",
     },
- 
-
-    jobs: {
-      isSynced: false,
-      timestamp: "Last sync failed"
-    }
   };
 
-  // --- LOGIC: AI Readiness Calculation ---
-  const successCount = [
-  data.resume.isParsed,
-  gmail.isConnected,
-  data.jobs.isSynced
-].filter(Boolean).length;
-
-  let aiState = "error";
-  let aiTitle = "Not Ready";
-  
-  if (successCount === 3) {
-    aiState = "success";
-    aiTitle = "Ready";
-  } else if (successCount > 0) {
-    aiState = "warning";
-    aiTitle = "Partial";
-  }
-
   if (loading) {
-    return <div style={{ padding: '2rem' }}>Loading...</div>;
+    return <div style={{ padding: "2rem" }}>Loading...</div>;
   }
 
   return (
@@ -92,8 +64,8 @@ useEffect(() => {
       <main className="dashboard-root">
         <TopHeader fullName={user?.fullname || "User"} />
 
+        {/* ── 2-card status row ── */}
         <div className="dashboard-status-grid">
-          {/* 1. RESUME CARD */}
           <StatusCard
             type="resume"
             title="Resume"
@@ -101,49 +73,31 @@ useEffect(() => {
             lastUpdated={data.resume.timestamp}
             state={data.resume.isParsed ? "success" : "error"}
           />
-
-          {/* 2. GMAIL CARD */}
-<StatusCard
-  type="gmail"
-  title="Gmail"
-  statusText={gmail.isConnected ? "Connected" : "Not Connected"}
-  lastUpdated={gmail.timestamp}
-  state={gmail.isConnected ? "success" : "error"}
-  onClick={!gmail.isConnected ? startGmailSync : undefined}
-/>
-
-
-          {/* 3. JOBS CARD */}
           <StatusCard
-            type="jobs"
-            title="Jobs"
-            statusText={data.jobs.isSynced ? "Synced" : "Not Synced"}
-            lastUpdated={data.jobs.timestamp}
-            state={data.jobs.isSynced ? "success" : "error"}
-          />
-
-          {/* 4. AI READINESS CARD (Calculated) */}
-          <StatusCard
-            type="ai"
-            title="AI Readiness"
-            statusText={aiTitle}
-            lastUpdated="Based on setup"
-            state={aiState}
+            type="gmail"
+            title="Gmail"
+            statusText={gmail.isConnected ? "Connected" : "Not Connected"}
+            lastUpdated={gmail.timestamp}
+            state={gmail.isConnected ? "success" : "error"}
+            onClick={!gmail.isConnected ? startGmailSync : undefined}
           />
         </div>
 
+        {/* ── Polish + Recruiter side by side ── */}
         <div className="dashboard-main-grid">
           <ResumePolishCard />
-          <ResumeOverview />
-          <JobMarketSnapshot />
-          <RecruiterActivity />
+          <RecruiterActivity
+            interviews={emailStats.interviews}
+            rejections={emailStats.rejections}
+            assessments={emailStats.assessments}
+          />
         </div>
 
+        {/* ── Calendar + Events/AskJobsy ── */}
         <div className="dashboard-lower-grid">
           <CalendarWidget />
           <div className="lower-right-col">
             <UpcomingEvents />
-            <AskJobsy />
           </div>
         </div>
       </main>

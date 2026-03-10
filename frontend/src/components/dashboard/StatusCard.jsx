@@ -1,112 +1,102 @@
 import React from "react";
+import { FileCheck2, Mail, CheckCheck, X, ArrowRight } from "lucide-react";
+
+const CONFIG = {
+  resume: {
+    icon: FileCheck2,
+    label: "Resume Status",
+    successDetail: "ATS-ready & fully parsed",
+    errorDetail:   "Upload a resume to get started",
+    accentColor:   "#16a34a",
+    softColor:     "#dcfce7",
+    borderColor:   "#a7f3d0",
+    errorAccent:   "#dc2626",
+    errorSoft:     "#fee2e2",
+    errorBorder:   "#fecaca",
+  },
+  gmail: {
+    icon: Mail,
+    label: "Gmail Integration",
+    successDetail: "Emails are being synced",
+    errorDetail:   "Click to connect your inbox",
+    accentColor:   "#1d4ed8",
+    softColor:     "#eff6ff",
+    borderColor:   "#bfdbfe",
+    errorAccent:   "#dc2626",
+    errorSoft:     "#fee2e2",
+    errorBorder:   "#fecaca",
+  },
+};
 
 export default function StatusCard({
-  type = "resume", // resume | gmail | jobs | ai
+  type = "resume",
   title = "Resume",
-  statusText = "Parsed",
+  statusText = "Parsed & Ready",
   lastUpdated = "Updated just now",
-  state = "success", // success | warning | error
+  state = "success",
   onClick,
 }) {
-  
-  // Define Icons based on Type and State
-  const getIcon = () => {
-    // 1. Error State is always a Cross
-    if (state === "error") {
-      return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      );
-    }
+  const cfg = CONFIG[type] || CONFIG.resume;
+  const Icon = cfg.icon;
 
-    // 2. AI Partial State (Warning)
-    if (type === "ai" && state === "warning") {
-        return (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        );
-    }
+  const isSuccess = state === "success";
 
-    // 3. Success States (Specific Icons per your request)
-    switch (type) {
-      case "resume":
-        // Tick Mark
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        );
-      case "gmail":
-        // Connected Logo (Link)
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-        );
-      case "jobs":
-        // Synced Logo (Refresh Arrows)
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21.5 2v6h-6"></path>
-            <path d="M2.5 22v-6h6"></path>
-            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
-            <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
-          </svg>
-        );
-      case "ai":
-      default:
-        // Tick Mark for AI Ready
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        );
-    }
-  };
-
-  // Main Icon (Left side)
-  const getMainIcon = () => {
-    if (type === "resume") return "📄";
-    if (type === "gmail") return "✉️";
-    if (type === "jobs") return "💼";
-    if (type === "ai") return "🧠";
-    return "📄";
-  };
+  const accentColor  = isSuccess ? cfg.accentColor  : cfg.errorAccent;
+  const softColor    = isSuccess ? cfg.softColor     : cfg.errorSoft;
+  const borderColor  = isSuccess ? cfg.borderColor   : cfg.errorBorder;
+  const detail       = isSuccess ? cfg.successDetail : cfg.errorDetail;
 
   return (
     <div
-  className={`status-card ${state}`}
-  tabIndex={onClick ? 0 : -1}
-  role={onClick ? "button" : undefined}
-  onClick={onClick}
-  onKeyDown={(e) => {
-    if (onClick && (e.key === "Enter" || e.key === " ")) {
-      onClick();
-    }
-  }}
-  style={{
-    cursor: onClick ? "pointer" : "default",
-  }}
->
+      className="status-card-v2"
+      onClick={onClick}
+      tabIndex={onClick ? 0 : -1}
+      role={onClick ? "button" : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) onClick();
+      }}
+      style={{
+        "--card-accent":  accentColor,
+        "--card-soft":    softColor,
+        "--card-border":  borderColor,
+        cursor: onClick ? "pointer" : "default",
+      }}
+    >
+      {/* Top accent bar */}
+      <div className="scv2-accent-bar" />
 
-      <div className="status-card-row">
-        <div className="status-left">
-          <div className="status-logo">
-            {getMainIcon()}
-          </div>
-
-          <div className="status-text">
-            <span className="status-title">{title}</span>
-            <span className="status-main">{statusText}</span>
-            <span className="status-sub">{lastUpdated}</span>
-          </div>
+      <div className="scv2-body">
+        {/* Left: icon block */}
+        <div className="scv2-icon-block">
+          <Icon size={24} strokeWidth={1.8} />
         </div>
 
-        <div className="status-right">
-          {getIcon()}
+        {/* Middle: text */}
+        <div className="scv2-text">
+          <span className="scv2-label">{cfg.label}</span>
+          <span className="scv2-value">{statusText}</span>
+          <span className="scv2-detail">{detail}</span>
         </div>
+
+        {/* Right: badge + optional cta */}
+        <div className="scv2-right">
+          <span className={`scv2-badge ${isSuccess ? "scv2-badge--ok" : "scv2-badge--err"}`}>
+            {isSuccess
+              ? <><CheckCheck size={12} strokeWidth={2.5} /> Active</>
+              : <><X         size={12} strokeWidth={2.5} /> Inactive</>
+            }
+          </span>
+          {onClick && !isSuccess && (
+            <span className="scv2-cta">
+              Connect <ArrowRight size={12} strokeWidth={2.5} />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom: last updated */}
+      <div className="scv2-footer">
+        <span className="scv2-timestamp">{lastUpdated}</span>
       </div>
     </div>
   );

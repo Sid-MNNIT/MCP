@@ -9,6 +9,7 @@ import JobFeed from "../components/jobs/JobFeed";
 import JobDetails from "../components/jobs/JobDetails";
 
 import { searchJobs, getRecommendedJobs, saveJob, unsaveJob, getSavedJobs } from "../utils/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const Jobs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +42,7 @@ const Jobs = () => {
   /* ============================= */
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showJobDetails, setShowJobDetails] = useState(false);
+  const fullName = useCurrentUser();
 
   /* ============================= */
   /* Load Saved Jobs on Mount      */
@@ -259,7 +261,7 @@ const Jobs = () => {
       <div className="jobs-main-area">
         {/* Header */}
         <div className="jobs-page-header">
-          <TopHeader title="Find your next role" hideGreeting />
+          <TopHeader title="Find your next role" hideGreeting fullName={fullName} />
         </div>
 
         {/* Recommended Jobs Button */}

@@ -1,79 +1,109 @@
 /* ================================================= */
-/* TOP HEADER & DROPDOWN STYLES */
+/* LAYOUT — TOP HEADER & DROPDOWN                   */
 /* ================================================= */
 
+.greeting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  line-height: 1.1;
+}
+
+.greeting-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.greeting-name {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-primary, #0f172a);
+  letter-spacing: -0.02em;
+}
+
+.greeting-name span {
+  color: var(--accent, #2563eb);
+}
+
+
 .top-header {
-  position: relative; /* Anchor for absolute positioning */
+  position: relative;
   z-index: 500;
 }
 
-/* Ensure the right side can anchor the menu */
 .top-header__right {
-  position: relative; 
+  position: relative;
   cursor: pointer;
 }
 
+/* ── Avatar ── */
 .avatar {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .avatar:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
 }
 
-/* --- Dropdown Menu Container --- */
+/* ── Dropdown ── */
 .profile-dropdown {
   position: absolute;
-  top: 120%; /* Pushes it slightly below the avatar */
+  top: calc(100% + 12px);
   right: 0;
-  width: 220px;
+  width: 226px;
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: 
-    0 10px 30px -5px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 8px;
-  
-  /* Animation State: Hidden */
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(-8px) scale(0.97);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.2s;
   z-index: 1000;
 }
 
-/* Animation State: Visible */
 .profile-dropdown.active {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
-/* --- Dropdown Internals --- */
 .dropdown-header {
-  padding: 12px 16px;
+  padding: 10px 14px 12px;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .dropdown-header strong {
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: 13.5px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .dropdown-header span {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 .dropdown-divider {
   height: 1px;
   background: var(--border-color);
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 .dropdown-item {
@@ -81,26 +111,27 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 9px 14px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 10px;
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  transition: background 0.15s, color 0.15s;
   text-align: left;
+  font-family: var(--font-sans);
 }
 
 .dropdown-item svg {
   color: var(--text-muted);
-  transition: color 0.2s;
+  transition: color 0.15s;
+  flex-shrink: 0;
 }
 
-/* Hover States */
 .dropdown-item:hover {
-  background: var(--bg-primary);
+  background: var(--bg-hover);
   color: var(--accent-primary);
 }
 
@@ -108,12 +139,12 @@
   color: var(--accent-primary);
 }
 
-/* Danger Item (Sign Out) */
+/* Danger */
 .dropdown-item.danger:hover {
-  background: #fef2f2;
-  color: #ef4444;
+  background: var(--danger-bg);
+  color: var(--danger-solid);
 }
 
 .dropdown-item.danger:hover svg {
-  color: #ef4444;
+  color: var(--danger-solid);
 }

@@ -296,9 +296,30 @@ const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
+// Upload avatar
+const uploadAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No file uploaded" });
+  }
+
+  const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { avatar: avatarUrl },
+    { new: true, select: "-password -refreshToken" }
+  );
+
+  return res.status(200).json({
+    success: true,
+    avatarUrl: user.avatar,
+  });
+});
+
 export {
   getMyProfile,
   updateMyProfile,
+  uploadAvatar,
   updateSkills,
   addExperience,
   updateExperience,
