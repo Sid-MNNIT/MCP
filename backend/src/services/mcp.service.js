@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 
 const ORCHESTRATOR_URL = "http://localhost:9000";
+const CHAT_URL = "http://localhost:9001";
 
 export async function callMCP({
   tool,
@@ -13,9 +14,10 @@ export async function callMCP({
 
   const isPipeline = Boolean(endpoint);
 
-  const url = isPipeline
-    ? `${ORCHESTRATOR_URL}${endpoint}`
-    : `${ORCHESTRATOR_URL}/agent/execute`;
+  const isChatEndpoint = endpoint === "/ask-jobsy";
+const url = isPipeline
+  ? `${isChatEndpoint ? CHAT_URL : ORCHESTRATOR_URL}${endpoint}`
+  : `${ORCHESTRATOR_URL}/agent/execute`;
 
   const headers = {
     "Content-Type": "application/json",

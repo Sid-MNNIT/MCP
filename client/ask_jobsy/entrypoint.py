@@ -2,46 +2,11 @@ from typing import Optional, Dict, Any
 
 from client.ask_jobsy.planner import planner_decide
 from client.ask_jobsy.executor import run_pipeline
+from client.ask_jobsy.validator import validate_plan
 from client.ask_jobsy.memory import (
     get_conversation_context,
     save_conversation_turn,
 )
-from client.ask_jobsy.registry.pipeline_registry import PIPELINE_REGISTRY
-
-
-# -------------------------------------------------
-# Executor Validator
-# -------------------------------------------------
-
-def validate_execution(plan: Dict[str, Any]) -> None:
-    """
-    Hard validation before executing any pipeline.
-    Raises ValueError if execution is unsafe.
-    """
-
-    if plan["type"] != "ACTION":
-        raise ValueError("Execution attempted for non-ACTION plan")
-
-    pipeline = plan.get("pipeline")
-    if pipeline not in PIPELINE_REGISTRY:
-        raise ValueError(f"Unknown pipeline: {pipeline}")
-
-    cfg = PIPELINE_REGISTRY[pipeline]
-
-    # Ensure required args are present
-    missing = plan.get("missing", [])
-    if missing:
-        raise ValueError(
-            f"Missing required arguments for '{pipeline}': {missing}"
-        )
-
-    # Confirmation guard
-    if cfg.get("requires_confirmation") and not plan.get("confirmed", False):
-        raise ValueError("Pipeline requires explicit confirmation")
-
-    # Risk guard (future-proof)
-    if cfg["risk"] == "HIGH":
-        raise ValueError("High-risk pipeline blocked without approval")
 
 
 # -------------------------------------------------
@@ -56,56 +21,93 @@ async def handle_user_message(
 ) -> Dict[str, Any]:
     """
     Core brain of Ask Jobsy.
-    Planner → Validator → Executor → Memory
+
+    Flow:
+    User → Planner → Validator → Executor → Memory
     """
 
     metadata = metadata or {}
 
-    # -----------------------------
-    # 1. Load conversation context
-    # -----------------------------
+ 
     conversation_context = get_conversation_context(conversation_id)
 
-    # -----------------------------
-    # 2. Planner
-    # -----------------------------
+
     plan = await planner_decide(
         user_message=user_message,
         conversation_context=conversation_context,
         metadata=metadata,
     )
 
-    # -----------------------------
-    # 3. CHAT intent (no execution)
-    # -----------------------------
+   
     if plan["type"] == "CHAT":
+        # Generate a real conversational reply using the LLM
+        from client.llm.openai_client import get_openai_client, get_openai_model
+        client = get_openai_client()
+        model = get_openai_model()
+
+        context_messages = [
+            {"role": t["role"], "content": t["content"]}
+            for t in conversation_context
+        ]
+
+        chat_response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Jobsy AI, a friendly and knowledgeable job search assistant. "
+                        "Help the user with their job search, career advice, interview tips, "
+                        "resume guidance, and anything related to finding a job. "
+                        "Be concise, warm, and helpful."
+                    ),
+                },
+                *context_messages,
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.7,
+            max_tokens=500,
+        )
+
+        reply = chat_response.choices[0].message.content.strip()
+
         save_conversation_turn(
             conversation_id=conversation_id,
             user_message=user_message,
-            assistant_message=plan["reasoning"],
+            assistant_message=reply,
         )
 
         return {
-            "response": plan["reasoning"],
+            "response": reply,
             "conversation_id": conversation_id,
             "metadata": {"plan": plan},
         }
 
-    # -----------------------------
-    # 4. ACTION intent
-    # -----------------------------
-    try:
-        validate_execution(plan)
-    except ValueError as e:
-        # Soft failure → ask follow-up instead of crashing
+
+    validation = validate_plan(plan)
+
+    if validation["status"] == "BLOCKED":
         save_conversation_turn(
             conversation_id=conversation_id,
             user_message=user_message,
-            assistant_message=str(e),
+            assistant_message=validation["message"],
         )
 
         return {
-            "response": str(e),
+            "response": validation["message"],
+            "conversation_id": conversation_id,
+            "metadata": {"plan": plan},
+        }
+
+    if validation["status"] == "NEEDS_CONFIRMATION":
+        save_conversation_turn(
+            conversation_id=conversation_id,
+            user_message=user_message,
+            assistant_message=validation["message"],
+        )
+
+        return {
+            "response": validation["message"],
             "conversation_id": conversation_id,
             "metadata": {"plan": plan},
         }
@@ -115,25 +117,64 @@ async def handle_user_message(
     # -----------------------------
     result = await run_pipeline(
         pipeline_name=plan["pipeline"],
+        endpoint=plan["endpoint"],
         args=plan["args"],
         jwt=jwt,
-        metadata=metadata,
     )
 
     # -----------------------------
-    # 6. Persist memory
+    # 6. Summarize result into human-readable reply
+    # -----------------------------
+    from client.llm.openai_client import get_openai_client, get_openai_model
+    import json as _json
+
+    _client = get_openai_client()
+    _model = get_openai_model()
+
+    try:
+        result_text = _json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
+    except Exception:
+        result_text = str(result)
+
+    summary_response = _client.chat.completions.create(
+        model=_model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are Jobsy AI, a friendly job search assistant. "
+                    "The user asked a question and a backend pipeline ran and returned data. "
+                    "Summarize the pipeline result in a clear, concise, friendly message for the user. "
+                    "Do not show raw JSON. Highlight the most important information. "
+                    "If it's a list of jobs, summarize the top ones. "
+                    "If it's emails, summarize key details. "
+                    "Keep it conversational and under 300 words."
+                ),
+            },
+            {"role": "user", "content": f"User asked: {user_message}"},
+            {"role": "assistant", "content": f"Pipeline result data:\n{result_text}"},
+            {"role": "user", "content": "Now summarize this result in a friendly, readable way."},
+        ],
+        temperature=0.5,
+        max_tokens=600,
+    )
+
+    human_reply = summary_response.choices[0].message.content.strip()
+
+    # -----------------------------
+    # 7. Persist memory
     # -----------------------------
     save_conversation_turn(
         conversation_id=conversation_id,
         user_message=user_message,
-        assistant_message=str(result),
+        assistant_message=human_reply,
     )
 
     # -----------------------------
-    # 7. Final response
+    # 8. Final response
     # -----------------------------
     return {
-        "response": result,
+        "response": human_reply,
         "conversation_id": conversation_id,
         "metadata": {"plan": plan},
     }

@@ -13,11 +13,11 @@ import mapEmailForUI from "../components/emails/EmailMapper.jsx";
 import AiReplyPreviewModal from "../components/emails/AiReplyPreviewModal.jsx"
 import "../styles/dashboard.css";
 import "../styles/email.css";
-import { getEmails,generateAiReplyPreview,sendAiReply,syncEmails } from "../utils/api.js";
+import { getEmails,getSentEmails,getStarredEmails,toggleStarEmail,generateAiReplyPreview,sendAiReply,syncEmails,deleteEmail } from "../utils/api.js";
 
 export default function Emails() {
 
-  const [selectedFolder, setSelectedFolder] = useState("all");
+  const [selectedFolder, setSelectedFolder] = useState("INBOX");
 
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,6 +52,7 @@ export default function Emails() {
         const res = await getEmails();
         const mapped = (res.emails || []).map(mapEmailForUI);
         setEmails(mapped);
+        setSelectedFolder("INBOX");
       } catch (err) {
         console.error("Failed to load emails", err);
       } finally {
@@ -67,9 +68,14 @@ export default function Emails() {
     let data = emails;
 
 
-    if (selectedFolder !== "all") {
-      data = data.filter((email) => email.tag === selectedFolder);
-    }
+ if (selectedFolder === "INBOX" || selectedFolder === "SENT") {
+  data = data.filter(email => email.folder === selectedFolder);
+}
+
+if (selectedFolder === "STARRED") {
+  data = data.filter(email => email.isStarred);
+}
+
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -82,7 +88,7 @@ export default function Emails() {
     }
 
     return data;
-  }, [emails, searchQuery]);
+  }, [emails, searchQuery,selectedFolder]);
 
   // Clear selected email if it disappears due to filtering
   useEffect(() => {
@@ -198,6 +204,77 @@ const handleGenerateAiReply = async (email) => {
       </div>
     );
   }
+const handleToggleStar = async (email) => {
+  try {
+    const res = await toggleStarEmail(email.id);
+
+    setEmails(prev =>
+      prev.map(e =>
+        e.id === email.id
+          ? { ...e, isStarred: res.isStarred }
+          : e
+      )
+    );
+
+    setSelectedEmail(prev =>
+      prev ? { ...prev, isStarred: res.isStarred } : prev
+    );
+  } catch (err) {
+    console.error("Failed to toggle star", err);
+  }
+};
+
+const handleDeleteEmail = async (email) => {
+  try {
+    await deleteEmail(email.id);
+
+    
+    setEmails(prev =>
+      prev.filter(e => e.id !== email.id)
+    );
+
+
+    setSelectedEmail(prev =>
+      prev?.id === email.id ? null : prev
+    );
+  } catch (err) {
+    console.error("Failed to delete email", err);
+    alert("Failed to delete email");
+  }
+};
+
+
+
+const handleShowInbox = async () => {
+  const res = await getEmails(); // inbox endpoint
+  const mapped = (res.emails || []).map(mapEmailForUI);
+  setEmails(mapped);
+  setSelectedFolder("INBOX");
+  setSelectedEmail(null);
+};
+
+const handleShowSent = async () => {
+  const res = await getSentEmails();
+  const mapped = (res.emails || []).map(mapEmailForUI);
+  setEmails(mapped);
+  setSelectedFolder("SENT");
+  setSelectedEmail(null);
+};
+
+const handleShowStarred = async () => {
+  const res = await getStarredEmails();
+  const mapped = (res.emails || []).map(mapEmailForUI);
+  setEmails(mapped);
+  setSelectedFolder("STARRED");
+  setSelectedEmail(null);
+};
+
+
+
+
+
+
+
 
   return (
     <div className="dashboard-shell">
@@ -208,16 +285,20 @@ const handleGenerateAiReply = async (email) => {
         <div className={`email-container ${selectedEmail ? "split-view" : ""}`}>
 
           {
-       <EmailSidebar
+<EmailSidebar
   onComposeClick={() => {
     setComposeInitialData(null);
     setIsComposeOpen(true);
   }}
-  onShowEmails={() => setSelectedEmail(null)}
+  onShowInbox={handleShowInbox}
+  onShowSent={handleShowSent}
+  onShowStarred={handleShowStarred}
   onSync={handleSync}
   isSyncing={isSyncing}
   lastSynced={lastSynced}
 />
+
+
 
           }
 
@@ -231,13 +312,17 @@ const handleGenerateAiReply = async (email) => {
           />
 
        {selectedEmail && (
-  <EmailDetail
-    email={selectedEmail}
-    onClose={() => setSelectedEmail(null)}
-    onReply={handleReply}
-    onGenerateAiReply={handleGenerateAiReply}
-    isAiLoading={isAiLoading}
-  />
+<EmailDetail
+  email={selectedEmail}
+  onClose={() => setSelectedEmail(null)}
+  onReply={handleReply}
+  onGenerateAiReply={handleGenerateAiReply}
+  isAiLoading={isAiLoading}
+  onToggleStar={handleToggleStar}
+  onDelete={handleDeleteEmail}
+/>
+
+
 )}
 
         </div>

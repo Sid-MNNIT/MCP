@@ -1,22 +1,58 @@
-# client/orchestrator/executor.py
+from typing import Dict, Any
+import httpx
+import os
+import base64
+import json as _json
 
-async def run_tool(tool_name: str, metadata: dict, jwt: str):
+ORCHESTRATOR_URL = "http://localhost:9000"
+_SERVICE_KEY = os.getenv("SERVICE_KEY", "abcd12345")
+
+
+async def run_pipeline(
+    *,
+    pipeline_name: str,
+    endpoint: str,
+    args: Dict[str, Any],
+    jwt: str,
+) -> Dict[str, Any]:
     """
-    Execute a whitelisted tool / pipeline.
+    Execute a planner-decided pipeline by calling the orchestrator directly.
+    Must NOT call back through Node (/api/ai/execute) — that creates an infinite loop.
     """
 
-    if not tool_name:
-        return None
+    if not endpoint:
+        raise ValueError("endpoint is required to execute pipeline")
 
-    # NEVER allow arbitrary execution
-    allowed_tools = {"sample_pipeline"}
+    if not jwt:
+        raise ValueError("jwt is required to execute pipeline")
 
-    if tool_name not in allowed_tools:
-        raise ValueError(f"Tool '{tool_name}' is not allowed")
+    # Decode userId from JWT and inject into args
+    # All orchestrator pipelines require userId in the request body
+    try:
+        payload_part = jwt.split(".")[1]
+        payload_part += "=" * (4 - len(payload_part) % 4)
+        decoded = _json.loads(base64.b64decode(payload_part).decode("utf-8"))
+        user_id = decoded.get("_id") or decoded.get("id") or decoded.get("sub")
+        if user_id:
+            args = {**args, "userId": str(user_id)}
+    except Exception:
+        pass  # If decode fails, proceed without userId
 
-    # Stub execution
-    return {
-        "tool": tool_name,
-        "status": "success",
-        "output": "Pipeline executed successfully (stub)"
+    url = f"{ORCHESTRATOR_URL}{endpoint}"
+
+    headers = {
+        "Authorization": f"Bearer {jwt}",
+        "Content-Type": "application/json",
+        "X-Service-Key": _SERVICE_KEY,
     }
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, json=args, headers=headers)
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Pipeline '{pipeline_name}' failed "
+            f"({response.status_code}): {response.text}"
+        )
+
+    return response.json()

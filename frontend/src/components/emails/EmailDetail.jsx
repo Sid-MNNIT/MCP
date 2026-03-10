@@ -5,7 +5,9 @@ export default function EmailDetail({
   onClose,
   onReply,
   onGenerateAiReply,   
-  isAiLoading
+  isAiLoading,
+  onDelete,
+  onToggleStar
 }) {
   if (!email) return null;
 
@@ -29,8 +31,27 @@ export default function EmailDetail({
           </div>
 
           <div className="detail-actions">
-            <button className="action-icon-btn" onClick={onClose}>✕</button>
-          </div>
+<button
+  className={`action-icon-btn ${email.isStarred ? "starred" : ""}`}
+  onClick={() => onToggleStar(email)}
+  title="Star"
+>
+  {email.isStarred ? "⭐" : "☆"}
+</button>
+
+  <button
+    className="action-icon-btn danger"
+    onClick={() => onDelete(email)}
+    title="Delete"
+  >
+    🗑
+  </button>
+
+  <button className="action-icon-btn" onClick={onClose}>
+    ✕
+  </button>
+</div>
+
         </div>
 
         <h1 className="detail-subject">{email.subject || "(No subject)"}</h1>

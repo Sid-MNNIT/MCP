@@ -7,7 +7,9 @@ import {
    executeAgentTool,
    emailReplyPreview,
    emailReplySend,
-   emailSync
+   emailSync,
+   toggleStarEmail,
+   queryEmails,
 } from "../controllers/email.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
@@ -18,9 +20,15 @@ router.post("/", verifyJWT, storeEmail);
 
 router.get("/fetch-email", verifyJWT, getUserEmail);
 
-
 router.get("/", verifyJWT, listEmails);
 router.delete("/:id", verifyJWT, deleteEmail);
+
+router.patch("/:id/star", verifyJWT,toggleStarEmail);
+
+router.post("/query", verifyJWT, queryEmails);
+
+
+
 
 
 

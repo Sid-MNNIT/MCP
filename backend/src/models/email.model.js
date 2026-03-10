@@ -18,6 +18,19 @@ const emailSchema = new mongoose.Schema(
       enum: ["gmail"],
       default: "gmail",
     },
+    isStarred: {
+    type: Boolean,
+    default: false
+  },
+    folder: {
+  type: String,
+  enum: ["INBOX", "SENT"],
+  required: true
+}, 
+
+
+
+
 
     type: {
       type: String,

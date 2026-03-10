@@ -1,53 +1,35 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile"; // 1. Import the new page
+import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Email from "./pages/Emails";
 import ProtectedRoute from "./components/common/ProtectedRoute";
-import Job from "./pages/Jobs"
+import Job from "./pages/Jobs";
+import Settings from "./pages/Settings";
+import AskAI from "./pages/AskAI";
+import AskAIFab from "./components/common/AskAIFab";
 
-function App() {
+function AppInner() {
+  const location = useLocation();
+  const hideFab = ["/auth", "/ask-ai"].includes(location.pathname);
+
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/auth" replace />} />
-      <Route path="/auth" element={<Auth />} />
-      
-      {/* Protected Routes */}
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      
-      <Route 
-        path="/profile" 
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/emails" 
-        element={
-          <ProtectedRoute>
-            <Email />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/jobs" 
-        element={
-          <ProtectedRoute>
-            <Job />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to="/auth" replace />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/emails" element={<ProtectedRoute><Email /></ProtectedRoute>} />
+        <Route path="/jobs" element={<ProtectedRoute><Job /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/ask-ai" element={<ProtectedRoute><AskAI /></ProtectedRoute>} />
+      </Routes>
+      {!hideFab && <AskAIFab />}
+    </>
   );
 }
 
-export default App;
+export default function App() {
+  return <AppInner />;
+}

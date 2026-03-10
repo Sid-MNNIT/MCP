@@ -426,6 +426,17 @@
   margin-bottom: 16px;
 }
 
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+
 .back-btn-mobile {
   display: none;
   background: transparent;
@@ -881,4 +892,12 @@
 .btn-send-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.action-icon-btn.starred {
+  color: gold;
+}
+
+.action-icon-btn.danger {
+  color: #ff5c5c;
 }

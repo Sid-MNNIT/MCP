@@ -43,6 +43,9 @@ def map_to_backend(email):
     # -----------------------------
     # Final payload
     # -----------------------------
+    folder = "SENT" if email.get("isSent") else "INBOX"
+
+    # Final payload
     return {
         "emailId": email["id"],
         "type": email_type,
@@ -51,5 +54,5 @@ def map_to_backend(email):
         "subject": email.get("subject", ""),
         "text": email.get("body", ""),
         "date": date.isoformat(),
-        "isEmbedded": False
+        "folder": folder,       
     }

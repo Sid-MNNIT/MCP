@@ -12,6 +12,9 @@ from client.orchestrator.job_agent import (
 
 from client.orchestrator.calendar_agent import create_calendar_event_pipeline
 from client.orchestrator.calendar_email_extractor import extract_calendar_from_email_pipeline
+from client.backend_client.email_query_api import query_emails_from_db
+from client.backend_client.email_digest_api import fetch_emails_for_digest
+
 app = FastAPI()
 
 SERVICE_KEY = os.getenv("SERVICE_KEY")
@@ -327,4 +330,103 @@ async def extract_calendar_from_email_endpoint(request: Request):
     
     print(f"📤 Calendar extraction response: success={result.get('success')}")
     
+    return result
+
+
+
+@app.post("/pipelines/email-query")
+async def email_query_pipeline(request: Request):
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    result = await query_emails_from_db(
+        jwt=jwt,
+        sender=body.get("sender"),
+        type=body.get("type"),
+        folder=body.get("folder"),
+        keyword=body.get("keyword"),
+        limit=body.get("limit", 20),
+    )
+
+    return result
+
+
+# ============================================================
+# EMAIL DIGEST PIPELINE
+# ============================================================
+
+@app.post("/pipelines/email-digest")
+async def email_digest_pipeline(request: Request):
+    """
+    Fetch emails grouped by type for a given period.
+    period: today | week | month | all
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    period = body.get("period", "week")
+    print(f"📥 Email digest request: period={period}")
+
+    result = await fetch_emails_for_digest(jwt=jwt, period=period)
+
+    print(f"📤 Email digest: total={result['total']}, counts={result['counts']}")
+
+    return result
+
+
+# ============================================================
+# APPLICATION TRACKER PIPELINES
+# ============================================================
+
+@app.post("/pipelines/application-stats")
+async def application_stats_pipeline(request: Request):
+    """
+    Get job application stats — counts per status inferred from email types.
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    from client.backend_client.application_tracker_api import get_application_stats
+    result = await get_application_stats(jwt=jwt, period=body.get("period", "all"))
+
+    print(f"📤 Application stats: {result.get('summary')}")
+    return result
+
+
+@app.post("/pipelines/application-followup")
+async def application_followup_pipeline(request: Request):
+    """
+    Find companies that haven't replied in N days.
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    from client.backend_client.application_tracker_api import get_followup_needed
+    result = await get_followup_needed(jwt=jwt, days=body.get("days", 7))
+
+    print(f"📤 Follow-up needed: {result.get('count')} companies")
     return result

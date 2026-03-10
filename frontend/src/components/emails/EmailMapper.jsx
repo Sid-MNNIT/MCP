@@ -8,6 +8,8 @@ const mapEmailForUI = (email) => {
     senderEmail,            // ✅ ADD THIS
     messageId: email.emailId,
     threadId: email.threadId,
+    isStarred: email.isStarred ?? false,
+    folder:email.folder,
 
     company:
       email.from?.split("@")[1]?.split(".")[0] || "Unknown",

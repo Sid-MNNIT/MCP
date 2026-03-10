@@ -1,4 +1,6 @@
 
+
+import { Email } from "../models/email.model.js";
 import { callMCP } from "./mcp.service.js";
 
 class EmailService {
@@ -34,23 +36,47 @@ class EmailService {
   }
 
 
-  async sendEmailReply({ draft, userId, jwt }) {
-    const { to, subject, body, threadId, in_reply_to } = draft || {};
+async sendEmailReply({ draft, userId, jwt }) {
+  const { to, subject, body, threadId, in_reply_to } = draft || {};
 
-    if (!to || !subject || !body || !threadId || !in_reply_to) {
-      throw new Error("Invalid draft");
-    }
-
-    return callMCP({
-      endpoint: "/pipelines/email-reply-send",
-      args: {
-        draft
-      },
-      userId,
-      jwt
-    });
+  if (!to || !subject || !body || !threadId || !in_reply_to) {
+    throw new Error("Invalid draft");
   }
 
+  const result = await callMCP({
+    endpoint: "/pipelines/email-reply-send",
+    args: { draft },
+    userId,
+    jwt
+  });
+
+  // ✅ Save sent email to DB so it appears in the Sent folder
+  try {
+    const sentMessageId = result?.messageId || `sent_${Date.now()}`;
+    await Email.findOneAndUpdate(
+      { userId, emailId: sentMessageId },
+      {
+        $set: {
+          provider: "gmail",
+          type: "OTHER",
+          from: "me",
+          subject: subject,
+          text: body,
+          threadId: threadId,
+          date: new Date(),
+          folder: "SENT",      // ← key field
+          isEmbedded: false,
+        },
+      },
+      { upsert: true, new: true }
+    );
+  } catch (saveErr) {
+    console.error("⚠️ Gmail send succeeded but DB store failed:", saveErr.message);
+    
+  }
+
+  return result;
+}
 
   async syncEmails({ userId, jwt }) {
     if (!jwt) {

@@ -8,16 +8,15 @@ MAX_TURNS = 10
 
 
 def get_conversation_context(conversation_id: str | None) -> List[Dict]:
-    if not conversation_id:
+    if not conversation_id or redis_client is None:
         return []
 
     key = f"jobsy:conversation:{conversation_id}"
-
-    data = redis_client.get(key)
-    if not data:
+    try:
+        data = redis_client.get(key)
+        return json.loads(data) if data else []
+    except Exception:
         return []
-
-    return json.loads(data)
 
 
 def save_conversation_turn(
@@ -25,21 +24,15 @@ def save_conversation_turn(
     user_message: str,
     assistant_message: str,
 ):
-    if not conversation_id:
+    if not conversation_id or redis_client is None:
         return
 
     key = f"jobsy:conversation:{conversation_id}"
-
-    history = get_conversation_context(conversation_id)
-
-    history.append({"role": "user", "content": user_message})
-    history.append({"role": "assistant", "content": assistant_message})
-
-    
-    history = history[-(MAX_TURNS * 2):]
-
-    redis_client.setex(
-        key,
-        CONTEXT_TTL_SECONDS,
-        json.dumps(history),
-    )
+    try:
+        history = get_conversation_context(conversation_id)
+        history.append({"role": "user", "content": user_message})
+        history.append({"role": "assistant", "content": assistant_message})
+        history = history[-(MAX_TURNS * 2):]
+        redis_client.setex(key, CONTEXT_TTL_SECONDS, json.dumps(history))
+    except Exception:
+        pass

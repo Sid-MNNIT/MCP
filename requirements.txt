@@ -8,6 +8,7 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+google-generativeai  # ← Added for Gemini API
 
 # Email parsing
 beautifulsoup4
@@ -22,6 +23,4 @@ python-dotenv
 #Resume Parsing
 pymupdf
 pdfplumber
-re
 spacy
-datetime

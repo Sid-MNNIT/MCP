@@ -89,6 +89,77 @@ PIPELINE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "optional_args": [],
         "requires_confirmation": False,
     },
+    "email_query": {
+        "endpoint": "/pipelines/email-query",
+        "type": "ACTION",
+        "risk": "LOW",
+        "description": (
+            "Query and fetch emails from the database with optional filters. "
+            "Use this when the user wants to see, summarise, or analyse their stored emails. "
+            "Supports filtering by sender (e.g. 'amazon', 'google'), "
+            "email type (JOB/INTERVIEW/OFFER/REJECTION/OTHER), "
+            "folder (INBOX/SENT), or a keyword in subject/body."
+        ),
+        "required_args": [],
+        "optional_args": ["sender", "type", "folder", "keyword", "limit"],
+        "requires_confirmation": False,
+    },
+
+    "email_digest": {
+        "endpoint": "/pipelines/email-digest",
+        "type": "ACTION",
+        "risk": "LOW",
+        "description": (
+            "Generate a digest/summary of the user's emails grouped by type "
+            "(JOB, INTERVIEW, OFFER, REJECTION, OTHER) for a given time period. "
+            "Use this when the user asks for a briefing, summary, or overview of their emails. "
+            "period can be: 'today' (last 24h), 'week' (last 7 days), "
+            "'month' (last 30 days), or 'all' (everything). "
+            "Examples: 'morning briefing', 'what happened this week', "
+            "'how many rejections this month', 'summarise all my emails'."
+        ),
+        "required_args": [],
+        "optional_args": ["period"],
+        "requires_confirmation": False,
+    },
+
+
+    # =========================================================
+    # APPLICATION TRACKER PIPELINES
+    # =========================================================
+
+    "application_stats": {
+        "endpoint": "/pipelines/application-stats",
+        "type": "ACTION",
+        "risk": "LOW",
+        "description": (
+            "Track and summarise job application status across all companies. "
+            "Infers application status (APPLIED, INTERVIEW, OFFER, REJECTION) from email types. "
+            "Use when user asks: 'how is my job search going', 'how many interviews do I have', "
+            "'how many offers', 'what is my application status', 'track my applications', "
+            "'how many rejections this month'. "
+            "period can be: 'today', 'week', 'month', 'all'."
+        ),
+        "required_args": [],
+        "optional_args": ["period"],
+        "requires_confirmation": False,
+    },
+
+    "application_followup": {
+        "endpoint": "/pipelines/application-followup",
+        "type": "ACTION",
+        "risk": "LOW",
+        "description": (
+            "Find companies that haven't replied in N days and may need a follow-up. "
+            "Use when user asks: 'which companies haven't replied', 'who should I follow up with', "
+            "'any pending applications', 'companies with no response', "
+            "'who hasn't got back to me'. "
+            "days defaults to 7 if not specified."
+        ),
+        "required_args": [],
+        "optional_args": ["days"],
+        "requires_confirmation": False,
+    },
 
     # =========================================================
     # CALENDAR PIPELINES

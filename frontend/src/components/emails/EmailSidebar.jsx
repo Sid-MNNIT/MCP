@@ -3,11 +3,16 @@ import {
   PenSquare,
   Inbox,
   RefreshCw,
+  Star,
+  Send
 } from "lucide-react";
+
 
 export default function EmailSidebar({
   onComposeClick,
-  onShowEmails,
+  onShowInbox,
+  onShowSent,
+  onShowStarred,
   onSync,
   isSyncing,
   lastSynced,
@@ -25,10 +30,22 @@ export default function EmailSidebar({
         </button>
 
         {/* Inbox / Show Emails */}
-        <button className="sidebar-btn" onClick={onShowEmails}>
+        <button className="sidebar-btn" onClick={onShowInbox}>
           <Inbox size={18} />
-          <span>Emails</span>
+          <span>Inbox</span>
         </button>
+        <button className="sidebar-btn" onClick={onShowSent}>
+  <Send size={18} />
+  <span>Sent</span>
+</button>
+
+
+        {/* Starred Emails */}
+<button className="sidebar-btn" onClick={onShowStarred}>
+  <Star size={18} />
+  <span>Starred</span>
+</button>
+
 
       </div>
 

@@ -95,4 +95,38 @@ router.get("/callback", async (req, res) => {
   }
 });
 
+router.delete("/disconnect", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const tokenDoc = await OAuthToken.findOne({ userId, provider: "google" });
+
+    // Attempt to revoke the token with Google
+    if (tokenDoc?.accessToken) {
+      try {
+        const oauth2Client = createOAuthClient();
+        oauth2Client.setCredentials({ access_token: tokenDoc.accessToken });
+        await oauth2Client.revokeCredentials();
+      } catch (revokeErr) {
+        console.warn("Token revoke warning:", revokeErr.message);
+      }
+    }
+
+    // Remove stored OAuth tokens
+    await OAuthToken.findOneAndDelete({ userId, provider: "google" });
+
+    // Mark user as disconnected
+    await User.findByIdAndUpdate(userId, { isGmailConnected: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "Gmail disconnected successfully",
+    });
+  } catch (err) {
+    console.error("Gmail disconnect error:", err.message);
+    return res.status(500).json({ success: false, message: "Failed to disconnect Gmail" });
+  }
+});
+
+
 export default router;

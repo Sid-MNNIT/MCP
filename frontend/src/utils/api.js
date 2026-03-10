@@ -151,11 +151,66 @@ export const getGmailStatus= async()=>{
 }
 
 export const getEmails= async()=>{
-  const res=await fetch(`${BASE_URL}/emails/fetch-email`,{
+  const res=await fetch(`${BASE_URL}/emails/fetch-email?sent=false`,{
     credentials :"include"
   })
   return res.json();
 }
+
+export const getSentEmails = async () => {
+  const res = await fetch(
+    `${BASE_URL}/emails/fetch-email?sent=true`,
+    {
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch sent emails");
+  }
+
+  return res.json();
+};
+
+
+
+export const getStarredEmails = async () => {
+  const res = await fetch(
+    `${BASE_URL}/emails/fetch-email?starred=true`,
+    { credentials: "include" }
+  );
+
+  return res.json();
+};
+
+export const deleteEmail=async(emailId) => {
+  const res=await fetch(
+    `${BASE_URL}/emails/${emailId}`,{
+      method:"DELETE",
+      credentials:"include"
+    }
+  );
+  if(!res.ok){
+    throw new Error("Failed to delete email")
+  }
+
+  return res.json();
+};
+
+
+export const toggleStarEmail = async (emailId) => {
+  const res = await fetch(`${BASE_URL}/emails/${emailId}/star`, {
+    method: "PATCH",
+    credentials: "include"
+  });
+
+  return res.json();
+};
+
+
+
+
+
 
 
 export const generateAiReplyPreview = async ({ messageId, tone }) => {
@@ -391,4 +446,16 @@ export const changePassword = async (currentPassword, newPassword) => {
   }
 
   return res.json();
+};
+export const disconnectGmail = async () => {
+  const res = await fetch(` http://localhost:5000/sync/google/disconnect`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to disconnect Gmail");
+  return res.json();
+};
+
+export const reconnectGmail = () => {
+  window.location.href = "http://localhost:5000/sync/google/gmail";
 };

@@ -8,11 +8,12 @@ const storeEmail = asyncHandler(async (req, res) => {
 
   const userId = req.user._id;
 
-  const { emailId,threadId, type, from, subject, text, date } = req.body;
+  const { emailId,threadId, type, from, subject, text, date,folder  } = req.body;
 
-  if (!emailId || !type || !from || !date || !threadId) {
+  if (!emailId || !type || !from || !date || !threadId || !folder) {
     throw new Error("Missing required email fields");
   }
+  
 
   const email = await Email.findOneAndUpdate(
     { userId, emailId },
@@ -25,6 +26,7 @@ const storeEmail = asyncHandler(async (req, res) => {
         threadId,
         text,
         date: new Date(date),
+        folder,
         isEmbedded: false,
       },
     },
@@ -66,7 +68,7 @@ const deleteEmail = asyncHandler(async (req, res) => {
 
   const deletedEmail = await Email.findOneAndDelete({
     _id: id,
-    userId, //ensure user can delete only their own email
+    userId,
   });
 
   if (!deletedEmail) {
@@ -82,16 +84,70 @@ const deleteEmail = asyncHandler(async (req, res) => {
   });
 });
 
-const getUserEmail=asyncHandler(async (req,res)=>{
-  const emails=await Email.find({userId:req.user._id})
-  .sort({date:-1})
-  .lean();
+const getUserEmail = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { sent, starred } = req.query;
+
+  const filter = { userId };
+
+  // ⭐ Starred is independent
+  if (starred === "true") {
+    filter.isStarred = true;
+  }
+
+  // 📥📤 Folder filter ONLY when explicitly asked
+  if (sent === "true") {
+    filter.folder = "SENT";
+  } else if (sent === "false") {
+    filter.folder = "INBOX";
+  }
+  // else → do NOT set folder at all
+
+  const emails = await Email.find(filter)
+    .sort({ date: -1 })
+    .lean();
 
   res.status(200).json({
-    success:true,
-    emails
-  })
+    success: true,
+    emails,
+  });
+});
+
+
+
+
+const toggleStarEmail=asyncHandler( async (req,res)=>{
+  try {
+    const { id } = req.params;
+
+    const email = await Email.findById(id);
+    if (!email) {
+      return res.status(404).json({ message: "Email not found" });
+    }
+
+    email.isStarred = !email.isStarred;
+    await email.save();
+
+    res.json({
+      success: true,
+      emailId: id,
+      isStarred: email.isStarred
+    });
+  } catch (err) {
+    console.error("Star toggle failed", err);
+    res.status(500).json({ message: "Failed to toggle star" });
+  }
+
 })
+
+
+
+
+
+
+
+
+
 
 const executeAgentTool=asyncHandler(async (req, res)=> {
   try {
@@ -196,6 +252,49 @@ const emailSync=asyncHandler(async (req, res)=> {
 }
 )
 
+const queryEmails = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { sender, type, folder, keyword, limit = 20 } = req.body;
+
+  const filter = { userId };
+
+  // Filter by sender name/email (e.g. "amazon", "google")
+  if (sender) {
+    filter.from = { $regex: sender, $options: "i" };
+  }
+
+  // Filter by email type (JOB, INTERVIEW, OFFER, REJECTION, OTHER)
+  if (type) {
+    filter.type = type.toUpperCase();
+  }
+
+  // Filter by folder (INBOX or SENT)
+  if (folder) {
+    filter.folder = folder.toUpperCase();
+  }
+
+  // Filter by keyword in subject or body
+  if (keyword) {
+    filter.$or = [
+      { subject: { $regex: keyword, $options: "i" } },
+      { text: { $regex: keyword, $options: "i" } },
+    ];
+  }
+
+  const emails = await Email.find(filter)
+    .sort({ date: -1 })
+    .limit(parseInt(limit))
+    .lean();
+
+  return res.status(200).json({
+    success: true,
+    count: emails.length,
+    emails,
+  });
+});
+
+
+
 export {
   storeEmail,
   listEmails,
@@ -204,5 +303,7 @@ export {
   emailReplyPreview,
   emailSync,
   emailReplySend,
-  executeAgentTool
+  executeAgentTool,
+  toggleStarEmail,
+  queryEmails,      
 };
