@@ -1,19 +1,43 @@
-# env files
+# ========================
+# ENV FILES (secrets)
+# ========================
 .env
 **/.env
 
-# OAuth secrets
+# ========================
+# GOOGLE OAUTH SECRETS
+# ========================
+**/credentials.json
+**/token.json
 client_secret_*.json
 
-<<<<<<< HEAD
-# Python cache
-__pycache__/
-*.pyc
+# ========================
+# NODE
+# ========================
+node_modules/
+**/node_modules/
+package-lock.json
+**/package-lock.json
 
+# ========================
+# PYTHON
+# ========================
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.env
+
+# ========================
+# MISC
+# ========================
+*.pdf
 jobsy/
-=======
-__pycache__/ 
-*.pyc 
-jobsy/ 
->>>>>>> 246bc3976b4455b1226dbb1ccd04c00512754b80
-*.pdf 
+.DS_Store
+Thumbs.db
