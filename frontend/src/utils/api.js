@@ -487,3 +487,26 @@ export const disconnectGmail = async () => {
 export const reconnectGmail = () => {
   window.location.href = "http://localhost:5000/sync/google/gmail";
 };
+
+/* ===================================================== */
+/* Notification Preferences APIs                         */
+/* ===================================================== */
+
+export const getNotificationPrefs = async () => {
+  const res = await fetch(`${BASE_URL}/notifications/preferences`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to fetch notification preferences");
+  return res.json();
+};
+
+export const updateNotificationPrefs = async (prefs) => {
+  const res = await fetch(`${BASE_URL}/notifications/preferences`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(prefs),
+  });
+  if (!res.ok) throw new Error("Failed to update notification preferences");
+  return res.json();
+};

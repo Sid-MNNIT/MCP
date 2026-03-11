@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import TopHeader from "../components/layout/TopHeader";
 import { getGmailStatus, disconnectGmail, reconnectGmail } from "../utils/api";
+import NotificationPrefsCard from "../components/settings/NotificationPrefsCard";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import "../styles/dashboard.css";
 
@@ -216,6 +217,8 @@ export default function Settings() {
               </>
             )}
           </div>
+          {/* Notification Preferences Card */}
+          <NotificationPrefsCard />
         </div>
       </main>
     </div>

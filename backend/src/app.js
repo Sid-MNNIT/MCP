@@ -35,6 +35,7 @@ import jobsRouter from "./routes/jobs.route.js";
 import calendarRouter from "./routes/calendar.route.js";
 import profileRoutes from "./routes/profile.route.js";
 import aiRoutes from "./routes/ai.route.js"
+import notificationsRouter from "./routes/notifications.route.js"
 // --------------------
 // Route mounting
 // --------------------
@@ -57,6 +58,7 @@ app.use("/internal/google", internalGoogleRoutes);
 app.use("/sync/google",googleSyncRoutes)
 
 app.use("/api/ai",aiRoutes)
+app.use("/api/notifications", notificationsRouter)
 
 // --------------------
 // Health check

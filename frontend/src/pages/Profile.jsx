@@ -14,6 +14,7 @@ import SkillsModal from "../components/profile/SkillsModal";
 import {
   getMyProfile,
   updateMyProfile,
+  uploadAvatar,
   updateSkills,
   addExperience,
   updateExperience,
@@ -53,12 +54,20 @@ export default function Profile() {
       try {
         const profile = await getMyProfile();
 
+        // Normalize relative avatar paths to full URL
+        const rawAvatar = profile.avatar || "";
+        const resolvedAvatar = rawAvatar.startsWith("http")
+          ? rawAvatar
+          : rawAvatar
+          ? `http://localhost:5000${rawAvatar}`
+          : "";
+
         setUser({
           fullname: profile.fullname || "",
           email: profile.email || "",
           headline: profile.headline || "",
           about: profile.about || "",
-          avatar: profile.avatar || "",
+          avatar: resolvedAvatar,
           location: profile.location || { city: "", country: "India" },
           socials: profile.socials || { linkedin: "", github: "", website: "" },
           skills: profile.skills || [],
@@ -88,9 +97,16 @@ export default function Profile() {
     }
   };
 
-  const handleAvatarUpdate = (newUrl) => { 
-    setUser({ ...user, avatar: newUrl }); 
-    setShowAvatarModal(false); 
+  const handleAvatarUpdate = async (newUrl) => {
+    try {
+      // Persist the avatar URL to MongoDB
+      await updateMyProfile({ avatar: newUrl });
+      setUser((prev) => ({ ...prev, avatar: newUrl }));
+      setShowAvatarModal(false);
+    } catch (err) {
+      console.error("Failed to save avatar", err);
+      alert("Failed to save profile picture. Please try again.");
+    }
   };
 
   // Experience handlers

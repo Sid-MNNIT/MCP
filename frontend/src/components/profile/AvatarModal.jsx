@@ -30,19 +30,32 @@ export default function AvatarModal({ currentAvatar, onClose, onSave }) {
 
   const handleSave = async () => {
     setError("");
+
+    if (tab === "upload" && !file) {
+      setError("Please select a file.");
+      return;
+    }
+    if (tab === "url" && !url.trim()) {
+      setError("Please enter an image URL.");
+      return;
+    }
+
     setLoading(true);
     try {
-      if (tab === "upload" && file) {
+      if (tab === "upload") {
+        // uploadAvatar posts the file AND saves avatarUrl to MongoDB in the controller
         const res = await uploadAvatar(file);
-        onSave(`http://localhost:5000${res.avatarUrl}`);
-      } else if (tab === "url" && url.trim()) {
-        onSave(url.trim());
+        // Normalize the returned relative path to a full URL for display
+        const fullUrl = res.avatarUrl.startsWith("http")
+          ? res.avatarUrl
+          : `http://localhost:5000${res.avatarUrl}`;
+        onSave(fullUrl);
       } else {
-        setError("Please select a file or enter a URL.");
-        setLoading(false);
-        return;
+        // For URL tab: pass the URL up — Profile.jsx will call updateMyProfile to persist it
+        onSave(url.trim());
       }
     } catch (err) {
+      console.error(err);
       setError("Upload failed. Please try again.");
     } finally {
       setLoading(false);

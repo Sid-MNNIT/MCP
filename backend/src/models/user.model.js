@@ -144,6 +144,18 @@ const userSchema = new mongoose.Schema(
       default: false
     },
 
+    /* -------------------- */
+    /* NOTIFICATION PREFS   */
+    /* -------------------- */
+
+    notificationPrefs: {
+      interviewAlerts: { type: Boolean, default: true },
+      rejectionAlerts: { type: Boolean, default: true },
+      offerAlerts:     { type: Boolean, default: true },
+      assessmentAlerts:{ type: Boolean, default: false },
+      weeklyDigest:    { type: Boolean, default: false },
+    },
+
 
     /* -------------------- */
     /* RESUME DATA          */
