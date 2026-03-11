@@ -1,4 +1,9 @@
 # client/orchestrator/runner.py
+from client.orchestrator.calendar_agent import create_calendar_event_pipeline
+from client.orchestrator.calendar_email_extractor import extract_calendar_from_email_pipeline
+
+# in run_workflow():
+
 
 from client.orchestrator.email_agent import (
     prepare_email_reply_preview,
@@ -8,6 +13,26 @@ from client.orchestrator.email_agent import (
 
 
 async def run_workflow(workflow: str, payload: dict):
+
+    if workflow == "calendar_create_event":
+        return await create_calendar_event_pipeline(
+            event_type=payload["event_type"],
+            company=payload["company"],
+            date=payload["date"],
+            start_time=payload["start_time"],
+            end_time=payload["end_time"],
+            user_id=str(payload["userId"]),
+            role=payload.get("role"),
+            timezone=payload.get("timezone", "Asia/Kolkata"),
+            meet_link=payload.get("meet_link"),
+            description=payload.get("description"),
+        )
+
+    if workflow == "extract_calendar_from_email":
+        return await extract_calendar_from_email_pipeline(
+            subject=payload["subject"],
+            text=payload["text"]
+        )
 
     if workflow == "prepare_email_reply_preview":
         if "message_id" not in payload:

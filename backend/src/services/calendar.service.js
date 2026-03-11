@@ -29,16 +29,27 @@ class CalendarService {
         throw new ApiError(400, `Cannot create calendar event from email type: ${email.type}. Only INTERVIEW emails are supported.`);
       }
 
+      // Guard: skip if email has no subject or text to parse
+      if (!email.subject || !email.text) {
+        throw new ApiError(400, "Email has no subject or text — cannot extract calendar details");
+      }
+
       // 3. Extract calendar details from email using MCP parser
-      const extractedDetails = await this.extractCalendarDetailsFromEmail(
+      const extractionResult = await this.extractCalendarDetailsFromEmail(
         userId,
         email.subject,
         email.text,
         jwt
       );
 
+      // Unwrap the { success, data } envelope from the orchestrator
+      if (!extractionResult.success) {
+        throw new ApiError(422, `LLM could not extract calendar details: ${extractionResult.error || "unknown error"}`);
+      }
+      const extractedDetails = extractionResult.data;
+
       // 4. Create calendar event with extracted details
-      return await callMCP({
+      const calendarResult = await callMCP({
         endpoint: "/pipelines/calendar-create-event",
         args: {
           eventType: extractedDetails.eventType || "INTERVIEW",
@@ -54,6 +65,15 @@ class CalendarService {
         userId,
         jwt,
       });
+
+      // Check if the orchestrator actually succeeded
+      if (!calendarResult.success) {
+        throw new ApiError(500, `Calendar MCP failed: ${calendarResult.error || calendarResult.message || "unknown error"}`);
+      }
+
+      console.log(`✅ Calendar event created: ${calendarResult.event_link}`);
+      return calendarResult;
+
     } catch (error) {
       console.error("❌ Calendar event creation error:", error);
       throw error;

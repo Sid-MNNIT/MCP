@@ -1,7 +1,8 @@
-# client/orchestrator/planner.py
-
 def decide_workflow(user_message: dict) -> str:
     text = user_message.get("text", "").lower()
+
+    if "schedule" in text or "calendar" in text or "interview" in text:
+        return "calendar_create_event"                    # ← move to TOP
 
     if "draft" in text or "reply" in text:
         return "prepare_email_reply_preview"

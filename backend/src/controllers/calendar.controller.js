@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/apiError.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import {User} from '../models/user.model.js';
+import { calendarService } from '../services/calendar.service.js';
 
 /**
  * Get Google Calendar authorization URL
@@ -99,8 +100,11 @@ export const disconnectCalendar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, 'Calendar disconnected successfully'));
 });
 
-// Keep your existing createCalendarEvent function
 export const createCalendarEvent = asyncHandler(async (req, res) => {
-  // Your existing implementation
-  // ...
+  const userId = req.user._id;
+  const jwt = req.headers.authorization?.replace("Bearer ", "");
+  const { emailId } = req.body;
+
+  const result = await calendarService.createCalendarEventFromEmail(userId, emailId, jwt);
+  return res.status(200).json(new ApiResponse(200, result, "Event created"));
 });

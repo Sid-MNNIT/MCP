@@ -222,6 +222,38 @@ async def job_categories_pipeline_endpoint(request: Request):
 
 
 # ============================================================
+# EMAIL INGEST PIPELINE
+# ============================================================
+
+@app.post("/pipelines/ingest-emails")
+async def ingest_emails_endpoint(request: Request):
+    """
+    Ingest recent job emails from Gmail and store them in the backend DB.
+    Called by the cron job every 5 minutes per connected user.
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    user_id = body.get("userId")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
+
+    print(f"📥 Ingest emails request for user: {user_id}")
+
+    from client.orchestrator.email_agent import ingest_and_store_emails
+    result = await ingest_and_store_emails(jwt=jwt)
+
+    print(f"📤 Ingest emails response: stored {len(result)} emails")
+    return {"success": True, "stored": len(result)}
+
+
+# ============================================================
 # CALENDAR PIPELINES
 # ============================================================
 

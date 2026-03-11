@@ -172,11 +172,12 @@ Email Body:
 
     print("[CALENDAR EXTRACTION PARSED RESULT]", result)
 
-    # Validate required fields
+    # Validate required fields — return None if date/time missing (email has no schedule info)
     required_fields = ["company", "date", "startTime", "endTime"]
     for field in required_fields:
         if not result.get(field):
-            raise ValueError(f"Missing required field: {field}")
+            print(f"[CALENDAR EXTRACTION] Missing required field: {field} — skipping this email")
+            return None  # Caller will handle gracefully
 
     # Set defaults for optional fields
     result.setdefault("role", "Interview")

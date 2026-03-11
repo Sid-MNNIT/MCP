@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 
 const emailSchema = new mongoose.Schema(
+  
   {
+    calendarEventCreated: {
+      type: Boolean,
+      default: false,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
