@@ -8,5 +8,4 @@ async def get_mcp_client() -> MultiServerMCPClient:
     global _mcp_client
     if _mcp_client is None:
         _mcp_client = MultiServerMCPClient(SERVERS)
-        
     return _mcp_client

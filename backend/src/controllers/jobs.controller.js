@@ -1,18 +1,8 @@
-/**
- * Jobs Controller
- * ----------------
- * Handles job-related HTTP requests.
- */
-
 import { jobsService } from "../services/jobs.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
-/**
- * Search jobs
- * GET /api/jobs/search
- */
 export const searchJobs = asyncHandler(async (req, res) => {
   const {
     keywords,
@@ -45,24 +35,19 @@ export const searchJobs = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Jobs retrieved successfully"));
 });
 
-/**
- * Get recommended jobs for logged-in user
- * GET /api/jobs/recommended
- */
 export const getRecommendedJobs = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  const token =
+    req.header("Authorization")?.replace("Bearer ", "") ||
+    req.cookies?.accessToken;
 
-  const result = await jobsService.getRecommendedJobs(userId);
+  const result = await jobsService.getRecommendedJobs(userId, token);
 
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Recommended jobs retrieved"));
 });
 
-/**
- * Get job categories
- * GET /api/jobs/categories
- */
 export const getJobCategories = asyncHandler(async (req, res) => {
   const { country = "in" } = req.query;
 
@@ -73,10 +58,6 @@ export const getJobCategories = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Job categories retrieved"));
 });
 
-/**
- * Match jobs to user's resume
- * POST /api/jobs/match
- */
 export const matchJobToResume = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { jobs } = req.body;
@@ -92,10 +73,6 @@ export const matchJobToResume = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Jobs matched successfully"));
 });
 
-/**
- * Save a job
- * POST /api/jobs/save
- */
 export const saveJob = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const job = req.body;
@@ -111,10 +88,6 @@ export const saveJob = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, result.message));
 });
 
-/**
- * Get saved jobs
- * GET /api/jobs/saved
- */
 export const getSavedJobs = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
@@ -125,10 +98,6 @@ export const getSavedJobs = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Saved jobs retrieved"));
 });
 
-/**
- * Unsave a job
- * DELETE /api/jobs/saved/:jobId
- */
 export const unsaveJob = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { jobId } = req.params;
@@ -142,4 +111,30 @@ export const unsaveJob = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, result.message));
+});
+
+//rank job for relevence
+export const rankJobs = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { jobs } = req.body;
+
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { jobs: [] }, "No jobs to rank"));
+  }
+
+  const token =
+    req.header("Authorization")?.replace("Bearer ", "") ||
+    req.cookies?.accessToken;
+
+  const rankedJobs = await jobsService.rankJobsByRelevance(
+    jobs,
+    userId,
+    token
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { jobs: rankedJobs }, "Jobs ranked successfully"));
 });

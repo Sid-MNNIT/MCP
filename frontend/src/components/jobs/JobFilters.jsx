@@ -6,6 +6,7 @@ const JobFilters = ({
   onSearch,
   isOpen,
   onClose,
+  isDisabled,
 }) => {
   if (!filters) return null;
 
@@ -16,30 +17,33 @@ const JobFilters = ({
     jobType,
     minSalary,
     maxSalary,
-    sortBy,
   } = filters;
 
   return (
-    <div className={`jobs-filters-col ${isOpen ? "mobile-open" : ""}`}>
-      {/* Mobile Header */}
+    <div
+      className={`jobs-filters-col ${isOpen ? "mobile-open" : ""} ${
+        isDisabled ? "filters-disabled" : ""
+      }`}
+    >
       <div className="mobile-filter-header">
         <span className="filter-title">Filter Jobs</span>
-        <button className="btn-close-filters" onClick={onClose}>
-          &times;
+        <button
+          className="btn-close-mobile"
+          onClick={onClose}
+        >
+          ✕
         </button>
       </div>
 
-      {/* Desktop Header */}
       <div className="filter-header">
         <div
           className="filter-title"
-          style={{ display: isOpen ? "none" : "block" }}
+          style={{ display: isOpen ? "none" : "flex" }}
         >
           Filter Jobs
         </div>
       </div>
 
-      {/* Keywords */}
       <div className="filter-group">
         <label className="filter-label">Keywords</label>
         <input
@@ -47,13 +51,11 @@ const JobFilters = ({
           className="job-input"
           placeholder="e.g. React, Python"
           value={keywords}
-          onChange={(e) =>
-            onFilterChange("keywords", e.target.value)
-          }
+          onChange={(e) => onFilterChange("keywords", e.target.value)}
+          disabled={isDisabled}
         />
       </div>
 
-      {/* Location */}
       <div className="filter-group">
         <label className="filter-label">Location</label>
         <input
@@ -61,42 +63,35 @@ const JobFilters = ({
           className="job-input"
           placeholder="e.g. Bangalore"
           value={location}
-          onChange={(e) =>
-            onFilterChange("location", e.target.value)
-          }
+          onChange={(e) => onFilterChange("location", e.target.value)}
+          disabled={isDisabled}
         />
       </div>
 
-      {/* Job Category (from backend categories later) */}
       <div className="filter-group">
         <label className="filter-label">Job Category</label>
         <select
           className="job-select"
           value={category}
-          onChange={(e) =>
-            onFilterChange("category", e.target.value)
-          }
+          onChange={(e) => onFilterChange("category", e.target.value)}
+          disabled={isDisabled}
         >
           <option value="">All Categories</option>
           <option value="IT Jobs">IT & Software</option>
-          <option value="Accounting & Finance Jobs">
-            Accounting & Finance
-          </option>
+          <option value="Accounting & Finance Jobs">Accounting & Finance</option>
           <option value="Engineering Jobs">Engineering</option>
           <option value="Sales Jobs">Sales & Marketing</option>
           <option value="HR Jobs">HR & Recruitment</option>
         </select>
       </div>
 
-      {/* Job Type */}
       <div className="filter-group">
         <label className="filter-label">Job Type</label>
         <select
           className="job-select"
           value={jobType}
-          onChange={(e) =>
-            onFilterChange("jobType", e.target.value)
-          }
+          onChange={(e) => onFilterChange("jobType", e.target.value)}
+          disabled={isDisabled}
         >
           <option value="full_time">Full-time</option>
           <option value="part_time">Part-time</option>
@@ -104,7 +99,6 @@ const JobFilters = ({
         </select>
       </div>
 
-      {/* Salary Range */}
       <div className="filter-group">
         <label className="filter-label">Salary Range (₹)</label>
         <div className="salary-range-inputs">
@@ -113,45 +107,27 @@ const JobFilters = ({
             className="job-input"
             placeholder="Min"
             value={minSalary}
-            onChange={(e) =>
-              onFilterChange("minSalary", e.target.value)
-            }
+            onChange={(e) => onFilterChange("minSalary", e.target.value)}
+            disabled={isDisabled}
           />
           <input
             type="number"
             className="job-input"
             placeholder="Max"
             value={maxSalary}
-            onChange={(e) =>
-              onFilterChange("maxSalary", e.target.value)
-            }
+            onChange={(e) => onFilterChange("maxSalary", e.target.value)}
+            disabled={isDisabled}
           />
         </div>
       </div>
 
-      {/* Sort By */}
-      <div className="filter-group">
-        <label className="filter-label">Sort By</label>
-        <select
-          className="job-select"
-          value={sortBy}
-          onChange={(e) =>
-            onFilterChange("sortBy", e.target.value)
-          }
-        >
-          <option value="relevance">Relevance</option>
-          <option value="date">Date (Newest)</option>
-          <option value="salary">Salary (High to Low)</option>
-        </select>
-      </div>
-
-      {/* Apply Button */}
       <button
         className="btn-search-jobs"
         onClick={() => {
           onSearch();
           if (isOpen) onClose();
         }}
+        disabled={isDisabled}
       >
         Search Jobs
       </button>

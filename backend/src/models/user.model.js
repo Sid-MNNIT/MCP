@@ -116,7 +116,7 @@ const userSchema = new mongoose.Schema(
     education: [
       {
         degree: String,
-        fieldOfStudy: String,  // ← NEW
+        fieldOfStudy: String,
         institution: String,
         year: Number,
       },
@@ -156,37 +156,6 @@ const userSchema = new mongoose.Schema(
       weeklyDigest:    { type: Boolean, default: false },
     },
 
-
-    /* -------------------- */
-    /* RESUME DATA          */
-    /* -------------------- */
-
-    // resume: {
-    //   skills: {
-    //     type: [String],
-    //     default: [],
-    //   },
-    //   preferredSkills: {
-    //     type: [String],
-    //     default: [],
-    //   },
-    //   experience: {
-    //     type: Number, // years
-    //     default: 0,
-    //   },
-    //   education: {
-    //     type: [String],
-    //     default: [],
-    //   },
-    //   contact: {
-    //     email: String,
-    //     phone: String,
-    //   },
-    //   uploadedAt: {
-    //     type: Date,
-    //   },
-    // },
-
     /* -------------------- */
     /* JOB PREFERENCES      */
     /* -------------------- */
@@ -204,7 +173,7 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
       jobTypes: {
-        type: [String], // full-time, part-time, contract
+        type: [String],
         default: [],
       },
       minSalary: {
@@ -228,8 +197,18 @@ const userSchema = new mongoose.Schema(
         title: String,
         company: String,
         location: String,
-        url: String,
-        matchScore: Number,
+        url: String,           // apply_url
+        description: String,
+        salary_min: Number,
+        salary_max: Number,
+        contract_type: String,
+        contract_time: String,
+        category: String,
+        created: String,
+        source: String,
+        matchScore: Number,    // match_score
+        matchReason: String,   // match_reason
+        matchedSkills: [String], // matched_skills
         savedAt: {
           type: Date,
           default: Date.now,

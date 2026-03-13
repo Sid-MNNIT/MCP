@@ -6,8 +6,9 @@ from client.orchestrator.email_agent import prepare_email_reply_preview,send_ema
 
 from client.orchestrator.job_agent import (
     search_jobs_pipeline,
-    get_personalized_recommendations,
+    get_personalized_recommendations_hybrid,
     fetch_job_categories,
+    rank_jobs_by_relevance,
 )
 
 from client.orchestrator.calendar_agent import create_calendar_event_pipeline
@@ -155,33 +156,25 @@ async def email_sync(request: Request):
 
 @app.post("/pipelines/job-search")
 async def job_search_pipeline_endpoint(request: Request):
-    """
-    Job search pipeline endpoint.
-    
-    Handles:
-    - Basic job search via Adzuna
-    - Optional resume matching (Phase 2)
-    - Skill-based filtering and ranking
-    """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized service")
-    
+
     body = await request.json()
     jwt = request.state.jwt
-    
+
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
-    
+
     user_id = body.get("userId")
     if not user_id:
         raise HTTPException(status_code=400, detail="userId required")
-    
+
     keywords = body.get("keywords", "")
     if not keywords:
         raise HTTPException(status_code=400, detail="keywords required")
-    
+
     print(f"📥 Job search request: keywords='{keywords}', user={user_id}")
-    
+
     result = await search_jobs_pipeline(
         keywords=keywords,
         location=body.get("location", ""),
@@ -192,63 +185,92 @@ async def job_search_pipeline_endpoint(request: Request):
         max_results=body.get("maxResults", 20),
         page=body.get("page", 1),
     )
-    
+
     print(f"📤 Job search response: success={result.get('success')}, count={result.get('count', 0)}")
-    
+
     return result
+
 
 
 @app.post("/pipelines/job-recommendations")
 async def job_recommendations_pipeline_endpoint(request: Request):
     """
-    Personalized job recommendations pipeline.
-    
-    Phase 1: Returns generic software jobs
-    Phase 2: Will use user profile for personalized matching
+    Personalized job recommendations pipeline - HYBRID APPROACH
     """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     body = await request.json()
     jwt = request.state.jwt
-    
+
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
-    
+
     user_id = body.get("userId")
     if not user_id:
         raise HTTPException(status_code=400, detail="userId required")
     
-    print(f"📥 Recommendations request: user={user_id}")
+    print(f"📥 HYBRID Recommendations request: user={user_id}")
     
-    result = await get_personalized_recommendations(
+    # Use the new hybrid function
+    result = await get_personalized_recommendations_hybrid(
         user_id=user_id,
         jwt=jwt,
         max_results=body.get("maxResults", 20),
     )
-    
+
     print(f"📤 Recommendations response: success={result.get('success')}, count={result.get('count', 0)}")
-    
+
     return result
 
-
-@app.get("/pipelines/job-categories")
-async def job_categories_pipeline_endpoint(request: Request):
+@app.post("/pipelines/rank-jobs")
+async def rank_jobs_pipeline_endpoint(request: Request):
     """
-    Fetch available job categories.
+    Rank search results by relevance for logged-in users.
+    Lightweight ranking (rule-based only for speed).
     """
     if request.headers.get("X-Service-Key") != SERVICE_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    user_id = body.get("userId")
+    jobs = body.get("jobs", [])
     
-    country = request.query_params.get("country", "in")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
     
-    print(f"📥 Categories request: country={country}")
-    
-    result = await fetch_job_categories(country=country)
-    
+    if not jobs:
+        return {"success": True, "jobs": []}
+
+    print(f"📥 Rank jobs request: {len(jobs)} jobs for user={user_id}")
+
+    result = await rank_jobs_by_relevance(
+        jobs=jobs,
+        user_id=user_id,
+        jwt=jwt,
+    )
+
+    print(f"📤 Rank jobs response: success={result.get('success')}")
+
     return result
 
+@app.get("/pipelines/job-categories")
+async def job_categories_pipeline_endpoint(request: Request):
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
+    country = request.query_params.get("country", "in")
+
+    print(f"📥 Categories request: country={country}")
+
+    result = await fetch_job_categories(country=country)
+
+    return result
 # ============================================================
 # CALENDAR PIPELINES
 # ============================================================

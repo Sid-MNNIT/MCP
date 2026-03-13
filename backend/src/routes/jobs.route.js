@@ -8,19 +8,21 @@ import {
   saveJob,
   getSavedJobs,
   unsaveJob,
+  rankJobs,
 } from "../controllers/jobs.controller.js";
 
 const router = Router();
 
-/* ---------------- PUBLIC ---------------- */
+//public
 router.get("/search",verifyJWT,searchJobs);
 router.get("/categories", verifyJWT, getJobCategories);
 
-/* --------------- PROTECTED -------------- */
+//protected
 router.get("/recommended", verifyJWT, getRecommendedJobs);
 //router.post("/match", verifyJWT, matchJobToResume);
 router.post("/save", verifyJWT, saveJob);
 router.get("/saved", verifyJWT, getSavedJobs);
 router.delete("/saved/:jobId", verifyJWT, unsaveJob);
+router.post("/rank", verifyJWT, rankJobs);
 
 export default router;

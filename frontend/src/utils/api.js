@@ -57,13 +57,8 @@ export const googleLogin = async (idToken) => {
   return res.json();
 };
 
-/* ===================================================== */
-/* Jobs APIs                                             */
-/* ===================================================== */
+//jobs api
 
-/**
- * Search jobs
- */
 export const searchJobs = async (filters) => {
   const query = new URLSearchParams(filters).toString();
 
@@ -74,9 +69,6 @@ export const searchJobs = async (filters) => {
   return res.json();
 };
 
-/**
- * Get job categories
- */
 export const getJobCategories = async (country = "in") => {
   const res = await fetch(
     `${BASE_URL}/jobs/categories?country=${country}`,
@@ -88,9 +80,6 @@ export const getJobCategories = async (country = "in") => {
   return res.json();
 };
 
-/**
- * Get recommended jobs (requires login)
- */
 export const getRecommendedJobs = async () => {
   const res = await fetch(`${BASE_URL}/jobs/recommended`, {
     credentials: "include",
@@ -99,9 +88,6 @@ export const getRecommendedJobs = async () => {
   return res.json();
 };
 
-/**
- * Save a job
- */
 export const saveJob = async (job) => {
   const res = await fetch(`${BASE_URL}/jobs/save`, {
     method: "POST",
@@ -142,6 +128,18 @@ export const startGmailSync = () => {
   window.location.href = "http://localhost:5000/sync/google/gmail";
 };
 
+export const rankJobsByRelevance = async (jobs) => {
+  const res = await fetch(`${BASE_URL}/jobs/rank`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ jobs }),
+  });
+
+  return res.json();
+};
 
 export const getGmailStatus= async()=>{
   const res=await fetch(`${BASE_URL}/user/gmail-status`,{
