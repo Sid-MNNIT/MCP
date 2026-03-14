@@ -10,8 +10,8 @@ from client.orchestrator.job_agent import (
     fetch_job_categories,
 )
 
-# ✅ NEW: import resume pipeline
-from client.orchestrator.resume_agent import parse_resume_pipeline
+# resume pipeline
+from client.orchestrator.resume_agent import parse_resume_pipeline, rescore_resume_pipeline
 from client.wrappers.resume_wrapper import _get_tool as _warm_resume
 
 from client.orchestrator.calendar_agent import create_calendar_event_pipeline
@@ -283,9 +283,49 @@ async def resume_parse_pipeline_endpoint(request: Request):
         job_description=body.get("job_description", None),
     )
 
-    print(f" Resume parse response: success={result.get('success')}")
+    print(f"📤 Resume parse response: success={result.get('success')}")
+    return result
 
-    
+
+@app.post("/pipelines/resume-recalculate")
+async def resume_recalculate_pipeline_endpoint(request: Request):
+    """
+    Re-score an already-parsed resume using the latest ATS scorer.
+    Skips the PDF parse step — uses the stored parsed_resume from MongoDB.
+
+    Input JSON:
+      {
+        "userId": "...",
+        "parsed_resume": { sections: {...}, entities: {...} }
+      }
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt  = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    user_id = body.get("userId")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
+
+    parsed_resume = body.get("parsed_resume")
+    if not parsed_resume:
+        raise HTTPException(status_code=400, detail="parsed_resume required")
+
+    print(f"📥 Resume recalculate request: user={user_id}")
+
+    result = await rescore_resume_pipeline(
+        user_id=user_id,
+        parsed_resume=parsed_resume,
+        use_llm=body.get("use_llm", False),
+        job_description=body.get("job_description", None),
+    )
+
+    print(f"📤 Resume recalculate response: success={result.get('success')}")
     return result
 
 

@@ -7,6 +7,33 @@
 import { callMCP } from "./mcp.service.js";
 
 class ResumeService {
+  async rescoreResume({ userId, jwt, parsed_resume }) {
+    console.log(`🔄 Rescoring resume for user: ${userId}`);
+
+    if (!parsed_resume) throw new Error("parsed_resume is required");
+
+    let result;
+    try {
+      result = await callMCP({
+        endpoint: "/pipelines/resume-recalculate",
+        args: { parsed_resume },
+        userId,
+        jwt,
+      });
+    } catch (error) {
+      console.error("❌ Rescore MCP call failed:", error.message);
+      throw new Error(`Resume rescore failed: ${error.message}`);
+    }
+
+    if (!result?.success) {
+      const reason = result?.error || "Resume rescore pipeline returned failure";
+      console.error("❌ Rescore pipeline failure:", reason);
+      throw new Error(reason);
+    }
+
+    return result;
+  }
+
   async parseResumePdf({ userId, jwt, file_b64, filename, mimetype }) {
     console.log(`📄 Parsing resume PDF for user: ${userId}`);
 

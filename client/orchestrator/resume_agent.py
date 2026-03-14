@@ -17,6 +17,33 @@ def _validate_file(filename: str, mimetype: str) -> Optional[str]:
     return None
 
 
+async def rescore_resume_pipeline(
+    user_id: str,
+    parsed_resume: Dict[str, Any],
+    use_llm: bool = False,
+    job_description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Re-score only — skips the PDF parse step.
+    Used when the scorer is updated and existing stored parsed_resume needs a fresh score.
+    """
+    print(f"🔄 Rescore pipeline | user={user_id}")
+
+    scored = await score_resume_ats(
+        parsed_resume=parsed_resume,
+        use_llm=use_llm,
+        job_description=job_description,
+    )
+    if not scored.get("success"):
+        return {"success": False, "error": scored.get("error", "ATS scoring failed")}
+
+    return {
+        "success": True,
+        "userId":  user_id,
+        "score":   scored.get("score_result"),
+    }
+
+
 async def parse_resume_pipeline(
     user_id: str,
     jwt: str,

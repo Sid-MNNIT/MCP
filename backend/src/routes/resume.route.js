@@ -5,6 +5,8 @@ import { verifyJWT } from "../middleware/auth.middleware.js";
 import {
   uploadAndParseResume,
   getMyResume,
+  recalculateScore,
+  deleteMyResume,
   streamMyResumeFile
 } from "../controllers/resume.controller.js";
 
@@ -24,8 +26,14 @@ const upload = multer({
 // POST upload + parse
 router.post("/", verifyJWT, upload.single("resume"), uploadAndParseResume);
 
+// POST re-score stored parsed_resume with latest scorer (no re-upload)
+router.post("/recalculate", verifyJWT, recalculateScore);
+
 // GET metadata + parsed + score
 router.get("/", verifyJWT, getMyResume);
+
+// DELETE resume from MongoDB
+router.delete("/", verifyJWT, deleteMyResume);
 
 // GET pdf file
 router.get("/file", verifyJWT, streamMyResumeFile);

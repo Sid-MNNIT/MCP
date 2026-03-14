@@ -131,6 +131,75 @@ export const getMyResume = asyncHandler(async (req, res) => {
 
 
 /**
+ * POST /api/resume/recalculate
+ * Re-score the stored parsed_resume with the latest ATS scorer (ats_v3).
+ * Does NOT re-parse the PDF or re-upload to Cloudinary.
+ * Use this when the scorer changes and cached scores need refreshing.
+ */
+export const recalculateScore = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const resumeDoc = await Resume.findOne({ userId });
+  if (!resumeDoc) throw new ApiError(404, "No resume found — upload a resume first");
+
+  const parsed_resume = resumeDoc.parsed_resume;
+  if (!parsed_resume || !parsed_resume.entities) {
+    throw new ApiError(400, "Stored resume has no parsed data — please re-upload");
+  }
+
+  const token =
+    req.header("Authorization")?.replace("Bearer ", "") ||
+    req.cookies?.accessToken ||
+    null;
+
+  const result = await resumeService.rescoreResume({
+    userId,
+    jwt:           token,
+    parsed_resume,
+  });
+
+  const newScore = result.score;
+
+  // Update only the score field in MongoDB — parsed_resume unchanged
+  await Resume.findOneAndUpdate(
+    { userId },
+    { score: newScore },
+    { new: true }
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        score:         newScore,
+        parsed_resume: resumeDoc.parsed_resume,
+      },
+      "Score recalculated with latest ATS scorer"
+    )
+  );
+});
+
+
+/**
+ * DELETE /api/resume
+ * Deletes the user's resume document from MongoDB.
+ * Does not delete from Cloudinary (file stays there as orphan, acceptable).
+ */
+export const deleteMyResume = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const deleted = await Resume.findOneAndDelete({ userId });
+  if (!deleted) throw new ApiError(404, "No resume found");
+
+  return res.status(200).json(
+    new ApiResponse(200, {}, "Resume deleted successfully")
+  );
+});
+
+
+/**
  * GET /api/resume/file
  * Redirects to the Cloudinary URL — browser opens the PDF directly.
  * Kept so any existing frontend link to /api/resume/file still works.

@@ -1,21 +1,74 @@
 import React from "react";
 
-// actual max points per breakdown key — must match ATS scorer weights
-const BREAKDOWN_MAX = {
-  skills:     40,
-  roles:      20,
-  experience: 20,
-  structure:  10,
-  companies:  10,
+// ─── Per-profile max weights ────────────────────────────────────────────────
+// Must stay in sync with ats_scorer.py WEIGHTS dict.
+const PROFILE_MAX = {
+  student: {
+    skills: 35, roles: 10, experience: 10, structure: 25, companies: 20,
+  },
+  early_career: {
+    skills: 38, roles: 15, experience: 15, structure: 17, companies: 15,
+  },
+  professional: {
+    skills: 40, roles: 20, experience: 20, structure: 10, companies: 10,
+  },
 };
 
+// Fallback if meta.profile is missing (old cached scores)
+const DEFAULT_MAX = PROFILE_MAX.professional;
+
+// ─── Profile display config ──────────────────────────────────────────────────
+const PROFILE_CONFIG = {
+  student: {
+    label: "Student Profile",
+    color: "#6366f1",
+    description: "Scored on skills, projects & education — not work experience.",
+  },
+  early_career: {
+    label: "Early Career",
+    color: "#f59e0b",
+    description: "Scored with lighter experience requirements for junior candidates.",
+  },
+  professional: {
+    label: "Professional",
+    color: "#10b981",
+    description: "Full scoring across all categories.",
+  },
+};
+
+// ─── Flag → human readable labels (profile-aware) ────────────────────────────
+const FLAG_LABELS = {
+  // student flags
+  missing_education_section:       "Add an Education section with your degree & institution",
+  missing_experience_and_projects: "Add at least a Projects section to showcase your work",
+  no_experience_signal:            "Add projects or internships to show real-world experience",
+  // early career / professional flags
+  missing_experience_section:      "Add a Work Experience section to strengthen your resume",
+  low_experience:                  "Limited work experience detected — add internships or projects",
+  intern_only_profile:             "Only intern-level roles found — consider adding projects or freelance work",
+  no_company_signal:               "No company names detected — make sure employers are clearly listed",
+  // all profiles
+  missing_skills:                  "Add a Skills section listing your technical & soft skills",
+};
+
+const resolveFlag = (flag) =>
+  FLAG_LABELS[flag] ?? flag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+// ─── Score helpers ───────────────────────────────────────────────────────────
+const scoreColor = (s) => s >= 80 ? "#10b981" : s >= 60 ? "#f59e0b" : "#ef4444";
+const scoreLabel = (s) => s >= 80 ? "Excellent" : s >= 60 ? "Good" : "Needs Improvement";
+
+// ─── Component ───────────────────────────────────────────────────────────────
 const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onCalculate }) => {
-  const scoreColor = (s) => s >= 80 ? "#10b981" : s >= 60 ? "#f59e0b" : "#ef4444";
-  const scoreLabel = (s) => s >= 80 ? "Excellent" : s >= 60 ? "Good" : "Needs Improvement";
+  const profile     = scoreData?.ats?.meta?.profile ?? null;
+  const profileConf = profile ? PROFILE_CONFIG[profile] : null;
+  const maxMap      = profile ? (PROFILE_MAX[profile] ?? DEFAULT_MAX) : DEFAULT_MAX;
 
   return (
     <div className="resume-column">
       <div className="resume-card">
+
+        {/* ── Header ── */}
         <div className="resume-card-header">
           <h3>ATS Score</h3>
           {scoreData && (
@@ -25,12 +78,13 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
           )}
         </div>
 
+        {/* ── Loading ── */}
         {isLoadingResume ? (
           <div className="empty-state-with-button">
-            <div className="empty-message">
-              <p>Loading score...</p>
-            </div>
+            <div className="empty-message"><p>Loading score...</p></div>
           </div>
+
+        /* ── Empty / not yet scored ── */
         ) : scoreData?.final_score === undefined ? (
           <div className="empty-state-with-button">
             <div className="empty-message">
@@ -49,9 +103,25 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               </button>
             )}
           </div>
+
+        /* ── Score result ── */
         ) : (
           <div className="score-content">
-            {/* main score circle */}
+
+            {/* Profile badge */}
+            {profileConf && (
+              <div className="profile-badge" style={{ borderColor: profileConf.color }}>
+                <span className="profile-badge__dot" style={{ background: profileConf.color }} />
+                <div className="profile-badge__text">
+                  <span className="profile-badge__label" style={{ color: profileConf.color }}>
+                    {profileConf.label}
+                  </span>
+                  <span className="profile-badge__desc">{profileConf.description}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Score number */}
             <div className="score-main" style={{ borderColor: scoreColor(scoreData.final_score) }}>
               <div className="score-number" style={{ color: scoreColor(scoreData.final_score) }}>
                 {scoreData.final_score}
@@ -59,11 +129,11 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               <div className="score-label">out of 100</div>
             </div>
 
-            {/* breakdown bars — uses actual max per key */}
+            {/* Breakdown bars — maxes pulled from profile */}
             <div className="score-breakdown">
               <h4>Score Breakdown</h4>
               {Object.entries(scoreData.ats.breakdown).map(([key, value]) => {
-                const max        = BREAKDOWN_MAX[key] ?? 20;
+                const max        = maxMap[key] ?? 20;
                 const percentage = Math.min((value / max) * 100, 100);
                 const color      = percentage >= 75 ? "#10b981" : percentage >= 50 ? "#f59e0b" : "#ef4444";
                 return (
@@ -80,8 +150,8 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               })}
             </div>
 
-            {/* flags */}
-            {scoreData.ats.flags && scoreData.ats.flags.length > 0 && (
+            {/* Flags */}
+            {scoreData.ats.flags?.length > 0 && (
               <div className="feedback-section">
                 <h4>Flags</h4>
                 {scoreData.ats.flags.map((flag, i) => (
@@ -93,21 +163,18 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
                         <line x1="12" y1="17" x2="12.01" y2="17" />
                       </svg>
                     </span>
-                    {/* convert snake_case flag to readable label */}
-                    <span className="feedback-text">
-                      {flag.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-                    </span>
+                    <span className="feedback-text">{resolveFlag(flag)}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* llm_feedback — server sends plain strings */}
-            {scoreData.llm_feedback && scoreData.llm_feedback.length > 0 && (
+            {/* LLM Suggestions */}
+            {scoreData.llm_feedback?.length > 0 && (
               <div className="feedback-section">
                 <h4>Suggestions</h4>
                 {scoreData.llm_feedback.map((text, i) => (
-                  <div key={i} className="feedback-item feedback-warning">
+                  <div key={i} className="feedback-item feedback-info">
                     <span className="feedback-icon">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -120,6 +187,7 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
                 ))}
               </div>
             )}
+
           </div>
         )}
       </div>
