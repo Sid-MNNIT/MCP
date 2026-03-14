@@ -90,18 +90,19 @@ async sendEmailReply({ draft, userId, jwt }) {
     });
   }
   /*email sync for cron job */
-  async syncEmailsInternal({ userId }) {
+  async syncEmailsInternal({ userId, lookback_days, max_results }) {
     if (!userId) {
-    throw new Error("userId is required");
+      throw new Error("userId is required");
     }
-    
-    
+
     return callMCP({
-    endpoint: "/pipelines/email-sync",
-    userId,
-    source: "cron"
+      endpoint: "/pipelines/email-sync",
+      userId,
+      source: "cron",
+      ...(lookback_days !== undefined && { lookback_days }),
+      ...(max_results   !== undefined && { max_results }),
     });
-    }
+  }
 }
 
 export const emailService = new EmailService();

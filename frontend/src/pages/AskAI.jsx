@@ -5,7 +5,10 @@ import Sidebar from "../components/layout/Sidebar";
 import "../styles/dashboard.css";
 import "../styles/askai.css";
 
-const BASE_URL = "http://localhost:5000/api";
+// ✅ Use the dedicated /api/ai/chat proxy — NOT /api/ai/execute.
+// Node's verifyJWT reads the httpOnly cookie and forwards the JWT as Bearer
+// to Python. conversation_id is scoped per user in Redis on the Python side.
+const CHAT_URL = "http://localhost:5000/api/ai/chat";
 
 const SUGGESTIONS = [
   "Summarize my recent rejection emails",
@@ -14,6 +17,30 @@ const SUGGESTIONS = [
   "Draft a follow-up email for my last interview",
   "How is my job search going?",
 ];
+
+// ─────────────────────────────────────────────
+// conversation_id: stored in localStorage but
+// NEVER shared across users — cleared on logout
+// via TopHeader.jsx → localStorage.removeItem
+// ─────────────────────────────────────────────
+const CONV_ID_KEY = "jobsy_ai_conv_id";
+
+function getOrCreateConvId() {
+  let id = localStorage.getItem(CONV_ID_KEY);
+  if (!id) {
+    id = `conv_${crypto.randomUUID()}`;
+    localStorage.setItem(CONV_ID_KEY, id);
+  }
+  return id;
+}
+
+// ─────────────────────────────────────────────
+// ❌ DO NOT persist messages in localStorage.
+// Persisting means the next user who logs in on
+// the same browser sees the previous user's chat
+// history — the root cause of the hallucination.
+// Messages are in-memory only (useState).
+// ─────────────────────────────────────────────
 
 function TypingDots() {
   return (
@@ -47,15 +74,15 @@ function MessageBubble({ msg }) {
                   {children}
                 </a>
               ),
-              p: ({ children }) => <p className="ai-md-p">{children}</p>,
+              p:      ({ children }) => <p className="ai-md-p">{children}</p>,
               strong: ({ children }) => <strong className="ai-md-bold">{children}</strong>,
-              ul: ({ children }) => <ul className="ai-md-ul">{children}</ul>,
-              ol: ({ children }) => <ol className="ai-md-ol">{children}</ol>,
-              li: ({ children }) => <li className="ai-md-li">{children}</li>,
-              h1: ({ children }) => <h1 className="ai-md-h">{children}</h1>,
-              h2: ({ children }) => <h2 className="ai-md-h">{children}</h2>,
-              h3: ({ children }) => <h3 className="ai-md-h3">{children}</h3>,
-              code: ({ children }) => <code className="ai-md-code">{children}</code>,
+              ul:     ({ children }) => <ul className="ai-md-ul">{children}</ul>,
+              ol:     ({ children }) => <ol className="ai-md-ol">{children}</ol>,
+              li:     ({ children }) => <li className="ai-md-li">{children}</li>,
+              h1:     ({ children }) => <h1 className="ai-md-h">{children}</h1>,
+              h2:     ({ children }) => <h2 className="ai-md-h">{children}</h2>,
+              h3:     ({ children }) => <h3 className="ai-md-h3">{children}</h3>,
+              code:   ({ children }) => <code className="ai-md-code">{children}</code>,
             }}
           >
             {content}
@@ -67,41 +94,18 @@ function MessageBubble({ msg }) {
   );
 }
 
-const STORAGE_KEY   = "jobsy_ai_messages";
-const CONV_ID_KEY   = "jobsy_ai_conv_id";
-
 const DEFAULT_MSG = {
   role: "assistant",
   content: "Hey! I'm Jobsy AI — ask me anything about your job search — emails, interviews, job listings, or career advice.",
 };
 
 export default function AskAI() {
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [DEFAULT_MSG];
-    } catch {
-      return [DEFAULT_MSG];
-    }
-  });
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [conversationId] = useState(() => {
-    const saved = localStorage.getItem(CONV_ID_KEY);
-    if (saved) return saved;
-    const newId = `conv_${Date.now()}`;
-    localStorage.setItem(CONV_ID_KEY, newId);
-    return newId;
-  });
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // Persist messages whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch { /* quota exceeded — silently ignore */ }
-  }, [messages]);
+  // ✅ In-memory only — never persisted to localStorage
+  const [messages, setMessages] = useState([DEFAULT_MSG]);
+  const [input, setInput]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const bottomRef  = useRef(null);
+  const inputRef   = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,24 +115,37 @@ export default function AskAI() {
     const trimmed = (text || input).trim();
     if (!trimmed || loading) return;
 
+    const conversationId = getOrCreateConvId();
+
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setLoading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/ai/execute`, {
+      // ✅ credentials:"include" sends httpOnly cookie to Node.
+      // Node verifies JWT, then forwards it as Bearer to Python /ask-jobsy.
+      const res = await fetch(CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          endpoint: "/ask-jobsy",
-          args: { text: trimmed, conversation_id: conversationId, metadata: {} },
+          text: trimmed,
+          conversation_id: conversationId,
+          metadata: {},
         }),
       });
 
-      if (!res.ok) throw new Error("Request failed");
-      const data = await res.json();
+      if (res.status === 401) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Session expired — please log in again." },
+        ]);
+        return;
+      }
 
+      if (!res.ok) throw new Error("Request failed");
+
+      const data = await res.json();
       const reply =
         typeof data.response === "string"
           ? data.response
@@ -153,6 +170,12 @@ export default function AskAI() {
     }
   };
 
+  const handleClear = () => {
+    setMessages([DEFAULT_MSG]);
+    // Reset conversation so Python starts a fresh Redis context
+    localStorage.removeItem(CONV_ID_KEY);
+  };
+
   const showSuggestions = messages.length <= 1;
 
   return (
@@ -160,7 +183,7 @@ export default function AskAI() {
       <Sidebar />
       <main className="ai-page">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="ai-header">
           <div className="ai-header-left">
             <div className="ai-header-icon">
@@ -172,19 +195,7 @@ export default function AskAI() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              className="ai-clear-btn"
-              title="Clear chat history"
-              onClick={() => {
-                const fresh = [DEFAULT_MSG];
-                setMessages(fresh);
-                localStorage.removeItem(STORAGE_KEY);
-                localStorage.removeItem(CONV_ID_KEY);
-                // new conv id
-                const newId = `conv_${Date.now()}`;
-                localStorage.setItem(CONV_ID_KEY, newId);
-              }}
-            >
+            <button className="ai-clear-btn" title="Clear chat history" onClick={handleClear}>
               <Trash2 size={14} strokeWidth={2} />
               Clear
             </button>
@@ -195,7 +206,7 @@ export default function AskAI() {
           </div>
         </div>
 
-        {/* ── Messages ── */}
+        {/* Messages */}
         <div className="ai-thread">
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} />
@@ -213,7 +224,7 @@ export default function AskAI() {
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Suggestion Pills ── */}
+        {/* Suggestion Pills */}
         {showSuggestions && (
           <div className="ai-suggestions-bar">
             {SUGGESTIONS.map((s) => (
@@ -224,7 +235,7 @@ export default function AskAI() {
           </div>
         )}
 
-        {/* ── Input ── */}
+        {/* Input */}
         <div className="ai-input-bar">
           <div className="ai-input-wrapper">
             <textarea

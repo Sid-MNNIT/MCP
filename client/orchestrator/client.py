@@ -16,6 +16,9 @@ from client.orchestrator.calendar_agent import create_calendar_event_pipeline
 from client.orchestrator.calendar_email_extractor import extract_calendar_from_email_pipeline
 from client.backend_client.email_query_api import query_emails_from_db
 from client.backend_client.email_digest_api import fetch_emails_for_digest
+from client.ask_jobsy.entrypoint import handle_user_message
+from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI()
 
@@ -517,3 +520,35 @@ async def application_followup_pipeline(request: Request):
 
     print(f"📤 Follow-up needed: {result.get('count')} companies")
     return result
+
+
+# ============================================================
+# ASK JOBSY CHAT
+# ============================================================
+
+class ChatRequest(BaseModel):
+    text: str
+    conversation_id: Optional[str] = None
+    metadata: dict = {}
+
+
+@app.post("/ask-jobsy")
+async def ask_jobsy(request: Request, body: ChatRequest):
+    """
+    Chat endpoint — proxied from Node /api/ai/chat.
+    JWT arrives as Authorization: Bearer from Node after cookie verification.
+    """
+    jwt = request.state.jwt
+    if not jwt:
+        raise HTTPException(status_code=401, detail="Missing JWT")
+
+    print("🟢 /ask-jobsy called")
+
+    response = await handle_user_message(
+        jwt=jwt,
+        user_message=body.text,
+        conversation_id=body.conversation_id,
+        metadata=body.metadata,
+    )
+
+    return response

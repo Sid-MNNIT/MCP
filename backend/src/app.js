@@ -36,6 +36,8 @@ import calendarRouter from "./routes/calendar.route.js";
 import profileRoutes from "./routes/profile.route.js";
 import aiRoutes from "./routes/ai.route.js"
 import notificationsRouter from "./routes/notifications.route.js"
+import { sseService } from "./services/sse.service.js";
+import { verifyJWT } from "./middleware/auth.middleware.js";
 // --------------------
 // Route mounting
 // --------------------
@@ -59,6 +61,16 @@ app.use("/sync/google",googleSyncRoutes)
 
 app.use("/api/ai",aiRoutes)
 app.use("/api/notifications", notificationsRouter)
+
+// SSE — real-time push to browser when cron syncs new emails
+app.get("/api/sse", verifyJWT, (req, res) => {
+  if (!req.user?._id) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const userId = String(req.user._id);
+  sseService.addClient(userId, res);
+  req.on("close", () => sseService.removeClient(userId));
+});
 
 // --------------------
 // Health check

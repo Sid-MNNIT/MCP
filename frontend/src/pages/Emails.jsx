@@ -65,6 +65,38 @@ export default function Emails() {
     loadEmails();
   }, []);
 
+  // SSE — auto-refresh emails when cron syncs new ones
+  useEffect(() => {
+    const es = new EventSource(
+      "http://localhost:5000/api/sse",
+      { withCredentials: true }   // sends httpOnly cookie for auth
+    );
+
+    es.addEventListener("email-synced", async () => {
+      console.log("📡 [SSE] New emails synced — refreshing...");
+      try {
+        const res = await getEmails();
+        const mapped = (res.emails || []).map(mapEmailForUI);
+        setEmails(mapped);
+
+        // update last-synced timestamp in the sidebar
+        const now = new Date();
+        setLastSynced(
+          now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        );
+      } catch (err) {
+        console.error("SSE re-fetch failed", err);
+      }
+    });
+
+    es.onerror = () => {
+      // Browser auto-reconnects on its own — nothing to do here
+      console.warn("⚠️ [SSE] Connection lost, browser will retry...");
+    };
+
+    return () => es.close();  // cleanup when component unmounts
+  }, []);
+
   // Filter + search
   const filteredEmails = useMemo(() => {
     let data = emails;

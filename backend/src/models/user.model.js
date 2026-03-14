@@ -144,6 +144,11 @@ const userSchema = new mongoose.Schema(
       default: false
     },
 
+    initialSyncDone: {
+      type: Boolean,
+      default: false
+    },
+
     /* -------------------- */
     /* NOTIFICATION PREFS   */
     /* -------------------- */

@@ -7,11 +7,12 @@ CONTEXT_TTL_SECONDS = 3600
 MAX_TURNS = 10
 
 
-def get_conversation_context(conversation_id: str | None) -> List[Dict]:
-    if not conversation_id or redis_client is None:
+def get_conversation_context(conversation_id: str | None, user_id: str | None = None) -> List[Dict]:
+    if not conversation_id or not user_id or redis_client is None:
         return []
 
-    key = f"jobsy:conversation:{conversation_id}"
+    # Scoped per user — different users can never read each other's history
+    key = f"jobsy:conversation:{user_id}:{conversation_id}"
     try:
         data = redis_client.get(key)
         return json.loads(data) if data else []
@@ -23,13 +24,15 @@ def save_conversation_turn(
     conversation_id: str | None,
     user_message: str,
     assistant_message: str,
+    user_id: str | None = None,
 ):
-    if not conversation_id or redis_client is None:
+    if not conversation_id or not user_id or redis_client is None:
         return
 
-    key = f"jobsy:conversation:{conversation_id}"
+    # Scoped per user — different users can never read each other's history
+    key = f"jobsy:conversation:{user_id}:{conversation_id}"
     try:
-        history = get_conversation_context(conversation_id)
+        history = get_conversation_context(conversation_id, user_id)
         history.append({"role": "user", "content": user_message})
         history.append({"role": "assistant", "content": assistant_message})
         history = history[-(MAX_TURNS * 2):]

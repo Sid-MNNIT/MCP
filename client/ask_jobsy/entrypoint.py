@@ -1,4 +1,6 @@
 from typing import Optional, Dict, Any
+import base64
+import json as _jwt_json
 
 from client.ask_jobsy.planner import planner_decide
 from client.ask_jobsy.executor import run_pipeline
@@ -96,7 +98,17 @@ async def handle_user_message(
 
     metadata = metadata or {}
 
-    conversation_context = get_conversation_context(conversation_id)
+    # Extract user_id from JWT so memory is scoped per user
+    user_id = ""
+    try:
+        payload_part = jwt.split(".")[1]
+        payload_part += "=" * (4 - len(payload_part) % 4)
+        decoded = _jwt_json.loads(base64.b64decode(payload_part).decode("utf-8"))
+        user_id = str(decoded.get("_id") or decoded.get("id") or decoded.get("sub") or "")
+    except Exception:
+        pass
+
+    conversation_context = get_conversation_context(conversation_id, user_id)
 
     # Fetch user profile and inject into metadata for the planner
     user_profile = await fetch_user_profile(jwt)
@@ -169,6 +181,7 @@ async def handle_user_message(
             conversation_id=conversation_id,
             user_message=user_message,
             assistant_message=reply,
+            user_id=user_id,
         )
 
         return {
@@ -185,6 +198,7 @@ async def handle_user_message(
             conversation_id=conversation_id,
             user_message=user_message,
             assistant_message=validation["message"],
+            user_id=user_id,
         )
 
         return {
@@ -198,6 +212,7 @@ async def handle_user_message(
             conversation_id=conversation_id,
             user_message=user_message,
             assistant_message=validation["message"],
+            user_id=user_id,
         )
 
         return {
@@ -286,10 +301,16 @@ async def handle_user_message(
     # -----------------------------
     # 8. Persist memory
     # -----------------------------
+    # NEVER save the raw pipeline result or human_reply (which contains real
+    # email/job data) into conversation history. The LLM will repeat it as
+    # fact on every future turn — even for different users after logout.
+    # Save only a short neutral note about what action was taken.
+    memory_note = f"Ran pipeline '{plan['pipeline']}' successfully."
     save_conversation_turn(
         conversation_id=conversation_id,
         user_message=user_message,
-        assistant_message=human_reply,
+        assistant_message=memory_note,
+        user_id=user_id,
     )
 
     # -----------------------------

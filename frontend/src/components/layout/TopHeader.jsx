@@ -30,7 +30,13 @@ export default function TopHeader({ fullName = "Priyangshu Ghosh", title, hideGr
   const handleSignOut = async () => {
     try {
       const res = await logoutUser();
-      if (res.success) navigate("/auth");
+      if (res.success) {
+        // Clear ALL chat state so the next user never sees this user's history
+        localStorage.removeItem("jobsy_conversation_id");
+        localStorage.removeItem("jobsy_ai_conv_id");
+        localStorage.removeItem("jobsy_ai_messages"); // remove old persisted messages if any
+        navigate("/auth");
+      }
     } catch {
       alert("Server error during logout");
     }

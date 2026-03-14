@@ -2,6 +2,12 @@ import cron from "node-cron";
 import pLimit from "p-limit";
 import { User } from "../models/user.model.js";
 import { emailService } from "./email.service.js";
+import { sseService } from "./sse.service.js";
+
+const INITIAL_LOOKBACK_DAYS = 7;
+const INITIAL_MAX_RESULTS = 50;
+const INCREMENTAL_LOOKBACK_DAYS = 1;
+const INCREMENTAL_MAX_RESULTS = 10;
 
 class CronService {
   constructor() {
@@ -17,7 +23,7 @@ class CronService {
     }
 
     const job = cron.schedule(
-      "*/1 * * * *",
+      "*/2 * * * *",
       async () => {
         if (this.isEmailSyncRunning) {
           console.log("⏭️ [CRON] Email sync already running, skipping");
@@ -31,7 +37,7 @@ class CronService {
           const users = await User.find({
             isActive: true,
             isGmailConnected: true,
-          }).select("_id email");
+          }).select("_id email initialSyncDone");
 
           console.log(`📧 [CRON] Users to sync: ${users.length}`);
 
@@ -39,11 +45,26 @@ class CronService {
             users.map((user) =>
               this.limit(async () => {
                 try {
+                  const isInitial = !user.initialSyncDone;
+                  const lookback_days = isInitial ? INITIAL_LOOKBACK_DAYS : INCREMENTAL_LOOKBACK_DAYS;
+                  const max_results  = isInitial ? INITIAL_MAX_RESULTS   : INCREMENTAL_MAX_RESULTS;
+
                   await emailService.syncEmailsInternal({
                     userId: user._id,
+                    lookback_days,
+                    max_results,
                   });
 
-                  console.log(`✅ [CRON] Synced: ${user.email}`);
+                  // After first successful sync, mark initial sync as done
+                  if (isInitial) {
+                    await User.findByIdAndUpdate(user._id, { initialSyncDone: true });
+                    console.log(`🎉 [CRON] Initial sync complete for: ${user.email}`);
+                  } else {
+                    console.log(`✅ [CRON] Synced: ${user.email}`);
+                  }
+
+                  // Push SSE event to browser if user tab is open
+                  sseService.emit(user._id, "email-synced", { ts: Date.now() });
                 } catch (err) {
                   console.error(
                     `❌ [CRON] Failed for ${user.email}:`,
