@@ -1,17 +1,19 @@
-import fs from "fs";
-import path from "path";
-
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/apiError.js";
-import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiError }      from "../utils/apiError.js";
+import { ApiResponse }   from "../utils/apiResponse.js";
 
-import { Resume } from "../models/resume.model.js";
-import { resumeService } from "../services/resume.services.js";
-import { savePdfToDisk } from "../utils/fileStorage.js";
+import { Resume }                   from "../models/resume.model.js";
+import { resumeService }            from "../services/resume.services.js";
+import { uploadPdfToCloudinary }    from "../utils/cloudinary.js";
 
 /**
  * POST /api/resume
- * Upload resume PDF → store → parse → save results
+ * Upload resume PDF → parse via MCP pipeline → store on Cloudinary → save to MongoDB
+ *
+ * Order is intentional:
+ *   1. pipeline first  - if it fails, nothing is uploaded to Cloudinary (no orphans)
+ *   2. Cloudinary next — only reached if pipeline succeeded
+ *   3. MongoDB last    — only reached if both above succeeded
  */
 export const uploadAndParseResume = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
@@ -24,47 +26,45 @@ export const uploadAndParseResume = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid file type. Only PDF allowed.");
   }
 
-  // Extract JWT (same pattern as your other controllers)
+  // Extract JWT for the orchestrator
   const token =
     req.header("Authorization")?.replace("Bearer ", "") ||
     req.cookies?.accessToken ||
     null;
 
-  // 1) Store the PDF on disk
-  const storagePath = savePdfToDisk({
-    userId,
-    buffer: file.buffer,
-    filename: file.originalname
-  });
-
-  // 2) Convert to base64 for orchestrator pipeline
+  // 1) Convert buffer → base64 and run the MCP parse+score pipeline
   const file_b64 = file.buffer.toString("base64");
 
-  // 3) Call orchestrator → MCP parse+score pipeline
   const pipelineResult = await resumeService.parseResumePdf({
     userId,
-    jwt: token,
+    jwt:      token,
     filename: file.originalname,
     mimetype: file.mimetype,
-    file_b64
+    file_b64,
   });
 
-  // pipelineResult is your orchestrator JSON
-  const parsed_resume = pipelineResult?.parsed_resume || {};
-  const score = pipelineResult?.score || {};
+  // resumeService now throws if pipeline returned success:false,
+  // so reaching here means we have a real parsed result
+  const parsed_resume = pipelineResult.parsed_resume;
+  const score         = pipelineResult.score;
 
-  // 4) Save Resume document in MongoDB (upsert)
+  // 2) Upload PDF to Cloudinary (overwrite:true handles re-uploads cleanly)
+  const { url: cloudinaryUrl, public_id: cloudinaryPublicId } =
+    await uploadPdfToCloudinary(file.buffer, `resumes/${userId}`);
+
+  // 3) Upsert MongoDB
   const resumeDoc = await Resume.findOneAndUpdate(
     { userId },
     {
       userId,
-      filename: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      storagePath,
-      uploadedAt: new Date(),
+      filename:           file.originalname,
+      mimetype:           file.mimetype,
+      size:               file.size,
+      cloudinaryUrl,
+      cloudinaryPublicId,
+      uploadedAt:         new Date(),
       parsed_resume,
-      score
+      score,
     },
     { upsert: true, new: true }
   );
@@ -74,15 +74,16 @@ export const uploadAndParseResume = asyncHandler(async (req, res) => {
       200,
       {
         resume: {
-          id: resumeDoc._id,
-          filename: resumeDoc.filename,
-          mimetype: resumeDoc.mimetype,
-          size: resumeDoc.size,
-          uploadedAt: resumeDoc.uploadedAt,
+          id:          resumeDoc._id,
+          filename:    resumeDoc.filename,
+          mimetype:    resumeDoc.mimetype,
+          size:        resumeDoc.size,
+          uploadedAt:  resumeDoc.uploadedAt,
+          openUrl:     resumeDoc.cloudinaryUrl,
         },
         parsed_resume,
         score,
-        openUrl: `/api/resume/file`
+        openUrl: resumeDoc.cloudinaryUrl,
       },
       "Resume uploaded and parsed successfully"
     )
@@ -92,7 +93,7 @@ export const uploadAndParseResume = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/resume
- * Fetch user's resume metadata + parsed result + score
+ * Fetch user's resume metadata + parsed result + score from MongoDB
  */
 export const getMyResume = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
@@ -102,11 +103,7 @@ export const getMyResume = asyncHandler(async (req, res) => {
 
   if (!resumeDoc) {
     return res.status(200).json(
-      new ApiResponse(
-        200,
-        { hasResume: false },
-        "No resume found"
-      )
+      new ApiResponse(200, { hasResume: false }, "No resume found")
     );
   }
 
@@ -116,15 +113,16 @@ export const getMyResume = asyncHandler(async (req, res) => {
       {
         hasResume: true,
         resume: {
-          id: resumeDoc._id,
-          filename: resumeDoc.filename,
-          mimetype: resumeDoc.mimetype,
-          size: resumeDoc.size,
-          uploadedAt: resumeDoc.uploadedAt
+          id:         resumeDoc._id,
+          filename:   resumeDoc.filename,
+          mimetype:   resumeDoc.mimetype,
+          size:       resumeDoc.size,
+          uploadedAt: resumeDoc.uploadedAt,
+          openUrl:    resumeDoc.cloudinaryUrl,
         },
         parsed_resume: resumeDoc.parsed_resume || {},
-        score: resumeDoc.score || {},
-        openUrl: `/api/resume/file`
+        score:         resumeDoc.score         || {},
+        openUrl:       resumeDoc.cloudinaryUrl,
       },
       "Resume fetched successfully"
     )
@@ -134,27 +132,15 @@ export const getMyResume = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/resume/file
- * Streams the stored resume PDF for the logged-in user
+ * Redirects to the Cloudinary URL — browser opens the PDF directly.
+ * Kept so any existing frontend link to /api/resume/file still works.
  */
 export const streamMyResumeFile = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   if (!userId) throw new ApiError(401, "Unauthorized");
 
   const resumeDoc = await Resume.findOne({ userId });
-  if (!resumeDoc) throw new ApiError(404, "Resume not found");
+  if (!resumeDoc?.cloudinaryUrl) throw new ApiError(404, "Resume not found");
 
-  const filePath = resumeDoc.storagePath;
-
-  if (!filePath || !fs.existsSync(filePath)) {
-    throw new ApiError(404, "Resume file missing on server");
-  }
-
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `inline; filename="${resumeDoc.filename || "resume.pdf"}"`
-  );
-
-  const stream = fs.createReadStream(filePath);
-  stream.pipe(res);
+  return res.redirect(resumeDoc.cloudinaryUrl);
 });

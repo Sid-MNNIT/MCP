@@ -1,7 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-import base64
-import json
-import re
+import base64, json, re, sys
 
 from services.pdf_loader import extract_text_from_pdf
 from pipelines.extract_pipeline import extract_resume
@@ -10,159 +8,91 @@ from pipelines.score_pipeline import ScorePipeline
 mcp = FastMCP("resume-mcp")
 
 
-# ==================================================
-# TOOL 1: Parse Resume (NO scoring, NO LLM)
-# ==================================================
 @mcp.tool()
 def parse_resume(file_b64: str):
-    """
-    MCP Tool: Parse a resume PDF into structured data.
+    """Parse a base64-encoded resume PDF. Returns structured sections + entities."""
+    print("[MCP SERVER] parse_resume called", flush=True, file=sys.stderr)
 
-    Input:
-      - file_b64: base64-encoded PDF
-
-    Output:
-      {
-        "status": "ok",
-        "result": {
-          "sections": {...},
-          "entities": {...}
-        }
-      }
-    """
-
-    # -----------------------------
-    # Validate input
-    # -----------------------------
     if not file_b64 or not isinstance(file_b64, str):
-        return {
-            "status": "error",
-            "error": "INVALID_INPUT",
-            "message": "file_b64 must be a base64 string",
-        }
+        return {"status": "error", "error": "INVALID_INPUT", "message": "file_b64 must be a non-empty string"}
 
-    # -----------------------------
-    # Normalize base64 input
-    # -----------------------------
     try:
         raw = file_b64.strip()
-
-        # Case 1: some clients paste JSON inside the field by mistake:
-        #   {"file_b64":"...."}
-        # We support that too to prevent integration pain.
-        if raw.startswith("{") and raw.endswith("}"):
+        # unwrap {"file_b64": "..."} if client sends JSON by mistake
+        if raw.startswith("{"):
             try:
                 obj = json.loads(raw)
-                if isinstance(obj, dict) and "file_b64" in obj:
-                    raw = str(obj["file_b64"]).strip()
+                raw = str(obj.get("file_b64", raw)).strip()
             except Exception:
-                # if JSON parsing fails, ignore and continue
                 pass
-
-        # Case 2: data URL prefix:
-        # data:application/pdf;base64,JVBERi0x...
+        # strip data-URL prefix
         if raw.lower().startswith("data:"):
-            # split at first comma
-            parts = raw.split(",", 1)
-            raw = parts[1].strip() if len(parts) == 2 else raw
-
-        # Case 3: remove ALL whitespace/newlines/tabs
-        # base64 is allowed to have whitespace in many encoders.
+            raw = raw.split(",", 1)[1].strip()
         raw = re.sub(r"\s+", "", raw)
-
-        file_b64_clean = raw
-
     except Exception as e:
-        return {
-            "status": "error",
-            "error": "NORMALIZATION_FAILED",
-            "message": str(e),
-        }
+        return {"status": "error", "error": "NORMALIZATION_FAILED", "message": str(e)}
 
-    # -----------------------------
-    # Decode base64 → pdf bytes
-    # -----------------------------
     try:
-        pdf_bytes = base64.b64decode(file_b64_clean, validate=True)
+        pdf_bytes = base64.b64decode(raw, validate=True)
     except Exception:
-        return {
-            "status": "error",
-            "error": "INVALID_BASE64",
-            "message": "Failed to decode base64",
-        }
+        return {"status": "error", "error": "INVALID_BASE64", "message": "Failed to decode base64"}
 
-    # -----------------------------
-    # Quick PDF signature validation
-    # -----------------------------
+    print("[MCP SERVER] base64 decoded successfully", flush=True, file=sys.stderr)
+
     if not pdf_bytes.startswith(b"%PDF"):
-        return {
-            "status": "error",
-            "error": "NOT_A_PDF",
-            "message": "Input is not a valid PDF",
-        }
+        return {"status": "error", "error": "NOT_A_PDF", "message": "Input is not a valid PDF"}
 
-    # -----------------------------
-    # Extract raw text from PDF
-    # -----------------------------
+    print("[MCP SERVER] PDF header valid, extracting text...", flush=True, file=sys.stderr)
+
     try:
         raw_text = extract_text_from_pdf(pdf_bytes)
+    except RuntimeError as e:
+        err = str(e)
+        if "SCANNED_PDF" in err:
+            return {"status": "error", "error": "SCANNED_PDF",
+                    "message": "Scanned/image PDF — no extractable text. Please upload a text-based PDF or DOCX."}
+        return {"status": "error", "error": "PDF_EXTRACTION_FAILED", "message": err}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": "PDF_TEXT_EXTRACTION_FAILED",
-            "message": str(e),
-        }
+        return {"status": "error", "error": "PDF_EXTRACTION_FAILED", "message": str(e)}
 
-    # -----------------------------
-    # Parse resume (text → sections/entities)
-    # -----------------------------
+    print("[MCP SERVER] text extracted, running extract_resume...", flush=True, file=sys.stderr)
+
     try:
-        parsed_resume = extract_resume(raw_text)
+        result = extract_resume(raw_text)
+        print("[MCP SERVER] extract_resume done, returning ok", flush=True, file=sys.stderr)
+        return {"status": "ok", "result": result}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": "PARSE_FAILED",
-            "message": str(e),
-        }
-
-    return {
-        "status": "ok",
-        "result": parsed_resume,
-    }
+        return {"status": "error", "error": "PARSE_FAILED", "message": str(e)}
 
 
-# ==================================================
-# TOOL 2: ATS Score (+ optional Hugging Face LLM)
-# ==================================================
 @mcp.tool()
-def ats_score(parsed_resume: dict, use_llm: bool = False):
+def ats_score(parsed_resume, use_llm: bool = False, job_description: str = ""):
+    """Score a parsed resume. Optionally use Groq LLM feedback and/or a job description."""
+    print("[MCP SERVER] ats_score called", flush=True, file=sys.stderr)
+
+    if isinstance(parsed_resume, str):
+        try:
+            parsed_resume = json.loads(parsed_resume)
+        except Exception:
+            return {"status": "error", "error": "INVALID_INPUT", "message": "Could not parse parsed_resume as JSON"}
+
     if not isinstance(parsed_resume, dict):
-        return {
-            "status": "error",
-            "error": "INVALID_INPUT",
-            "message": "parsed_resume must be a dict",
-        }
+        return {"status": "error", "error": "INVALID_INPUT", "message": "parsed_resume must be a dict"}
 
     try:
-        pipeline = ScorePipeline(use_llm=use_llm)
-        score_result = pipeline.run(parsed_resume)
+        result = ScorePipeline(use_llm=use_llm).run(parsed_resume, job_description=job_description or None)
+        print("[MCP SERVER] ats_score done, returning ok", flush=True, file=sys.stderr)
+        return {"status": "ok", "result": result}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": "SCORING_FAILED",
-            "message": str(e),
-        }
-
-    return {
-        "status": "ok",
-        "result": score_result,
-    }
+        return {"status": "error", "error": "SCORING_FAILED", "message": str(e)}
 
 
 @mcp.tool()
 def ping():
-    return "pong"
+    """Health check."""
+    return {"status": "ok", "message": "pong"}
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    import uvicorn
+    uvicorn.run(mcp.streamable_http_app(), host="127.0.0.1", port=8001)

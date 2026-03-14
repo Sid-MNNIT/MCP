@@ -1,154 +1,76 @@
-"""
-ATS Scorer (Deterministic, Stable)
-
-Design goals:
-- Reproducible scores (no randomness)
-- Explainable breakdown
-- Safe with partial / noisy resumes
-- Future-ready for JD alignment & LLM augmentation
-"""
-
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class ATSScorer:
-    WEIGHTS = {
-        "skills": 40,
-        "roles": 20,
-        "experience": 20,
-        "structure": 10,
-        "companies": 10,
-    }
-    EXPERIENCE_BUCKETS = [
-        (0, 0),
-        (1, 5),
-        (2, 10),
-        (3, 15),
-        (5, 20),
-    ]
-    def score(self, resume: Dict, jd: Dict | None = None) -> Dict:
-        """
-        Compute ATS score.
+    WEIGHTS = {"skills": 40, "roles": 20, "experience": 20, "structure": 10, "companies": 10}
 
-        Inputs:
-            resume: output of extract_pipeline
-            jd (optional): parsed job description
+    # (min_total_months, score)
+    EXP_BUCKETS = [(0,0),(6,5),(12,10),(24,15),(36,17),(60,20)]
 
-        Output:
-            {
-              total_score,
-              breakdown,
-              flags,
-              meta
-            }
-        """
-
-        entities = resume.get("entities", {}) or {}
-        sections = resume.get("sections", {}) or {}
-
+    def score(self, resume: Dict, jd: Optional[Dict] = None) -> Dict:
+        e = resume.get("entities", {}) or {}
+        s = resume.get("sections", {}) or {}
         breakdown = {
-            "skills": self._score_skills(entities, jd),
-            "roles": self._score_roles(entities, jd),
-            "experience": self._score_experience(entities),
-            "structure": self._score_structure(sections),
-            "companies": self._score_companies(entities),
+            "skills":     self._skills(e, jd),
+            "roles":      self._roles(e, jd),
+            "experience": self._experience(e),
+            "structure":  self._structure(s),
+            "companies":  self._companies(e),
         }
-
-        total = min(100, sum(breakdown.values()))
-
         return {
-            "total_score": total,
-            "breakdown": breakdown,
-            "flags": self._generate_flags(entities, sections),
-            "meta": {
-                "scorer": "deterministic_ats_v1",
-                "jd_used": bool(jd),
-            },
+            "total_score": min(100, sum(breakdown.values())),
+            "breakdown":   breakdown,
+            "flags":       self._flags(e, s),
+            "meta":        {"scorer": "ats_v2", "jd_used": bool(jd)},
         }
 
-    # SCORING COMPONENTS
-    def _score_skills(self, entities: Dict, jd: Dict | None) -> int:
-        skills = set(entities.get("skills", []))
+    def _skills(self, e, jd):
+        skills = set(e.get("skills", []))
         if not skills:
             return 0
-
-        weight = self.WEIGHTS["skills"]
-
+        w = self.WEIGHTS["skills"]
         if jd and jd.get("skills"):
-            jd_skills = set(jd["skills"])
-            matched = skills & jd_skills
-            ratio = len(matched) / max(len(jd_skills), 1)
-            return int(weight * min(ratio, 1.0))
+            ratio = len(skills & set(jd["skills"])) / max(len(jd["skills"]), 1)
+            return int(w * min(ratio, 1.0))
+        return min(w, int(len(skills) * 2.5))
 
-        return min(weight, int(len(skills) * 2.5))
-
-    def _score_roles(self, entities: Dict, jd: Dict | None) -> int:
-        roles = set(entities.get("normalized_roles", []))
-        seniority = set(entities.get("seniority", []))
-
+    def _roles(self, e, jd):
+        roles = set(e.get("normalized_roles", []))
         if not roles:
             return 0
         score = self.WEIGHTS["roles"]
+        if jd and jd.get("roles") and not (roles & set(jd["roles"])):
+            score = int(score * 0.4)
+        if e.get("seniority") == ["intern"]:
+            score = int(score * 0.4)
+        return score
 
-        if jd and jd.get("roles"):
-            if not roles & set(jd["roles"]):
-                score *= 0.4
-
-        if seniority == {"intern"}:
-            score *= 0.4
-
-        return int(score)
-
-    def _score_experience(self, entities: Dict) -> int:
-        years = entities.get("experience_years", 0)
-
-        for min_years, score in reversed(self.EXPERIENCE_BUCKETS):
-            if years >= min_years:
+    def _experience(self, e):
+        total = e.get("total_months") or e.get("experience_years", 0) * 12 + e.get("experience_months", 0)
+        for min_m, score in reversed(self.EXP_BUCKETS):
+            if total >= min_m:
                 return score
-
         return 0
 
-    def _score_structure(self, sections: Dict) -> int:
-        required = ["experience", "skills", "projects"]
-        present = sum(bool(sections.get(s)) for s in required)
+    def _structure(self, s):
+        present = sum(bool(s.get(k, "").strip()) for k in ["experience", "skills", "projects"])
+        w = self.WEIGHTS["structure"]
+        if present == 3: return w
+        if present == 2: return int(w * 0.7)
+        if s.get("projects", "").strip(): return int(w * 0.4)
+        return int(w * 0.2) if present else 0
 
-        weight = self.WEIGHTS["structure"]
+    def _companies(self, e):
+        c = e.get("companies", [])
+        if not c: return 0
+        return self.WEIGHTS["companies"] if len(c) >= 2 else int(self.WEIGHTS["companies"] * 0.6)
 
-        if present == 3:
-            return weight
-        if present == 2:
-            return int(weight * 0.6)
-        if present == 1:
-            return int(weight * 0.3)
-        return 0
-
-    def _score_companies(self, entities: Dict) -> int:
-        companies = entities.get("companies", [])
-        weight = self.WEIGHTS["companies"]
-
-        if not companies:
-            return 0
-        if len(companies) >= 2:
-            return weight
-        return int(weight * 0.6)
-    
-    # FLAGS (non-scoring signals)
-    def _generate_flags(self, entities: Dict, sections: Dict) -> List[str]:
+    def _flags(self, e, s) -> List[str]:
         flags = []
-
-        if not entities.get("skills"):
-            flags.append("missing_skills")
-
-        if not sections.get("experience"):
-            flags.append("missing_experience_section")
-
-        if entities.get("experience_years", 0) < 1:
-            flags.append("low_experience")
-
-        if entities.get("seniority") == ["intern"]:
-            flags.append("intern_only_profile")
-
-        if not entities.get("companies"):
-            flags.append("no_company_signal")
-
+        total = e.get("total_months") or e.get("experience_years", 0) * 12 + e.get("experience_months", 0)
+        if not e.get("skills"):              flags.append("missing_skills")
+        if not s.get("experience","").strip(): flags.append("missing_experience_section")
+        if total < 6:                         flags.append("low_experience")
+        if e.get("seniority") == ["intern"]:  flags.append("intern_only_profile")
+        if not e.get("companies"):            flags.append("no_company_signal")
         return flags

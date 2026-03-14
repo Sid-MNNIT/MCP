@@ -1,9 +1,21 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from client.wrappers.resume_wrapper import parse_resume_pdf, score_resume_ats
 
-from client.wrappers.resume_wrapper import (
-    parse_resume_pdf,
-    score_resume_ats,
-)
+SUPPORTED_MIMETYPES = {"application/pdf"}
+SUPPORTED_EXTENSIONS = {".pdf"}
+
+
+def _validate_file(filename: str, mimetype: str) -> Optional[str]:
+    """Returns an error message if file type is unsupported, else None."""
+    import os
+    ext = os.path.splitext(filename)[1].lower()
+    if mimetype not in SUPPORTED_MIMETYPES or ext not in SUPPORTED_EXTENSIONS:
+        return (
+            f"Unsupported file type: '{filename}' ({mimetype}). "
+            f"Only text-based PDF files are supported."
+        )
+    return None
+
 
 async def parse_resume_pipeline(
     user_id: str,
@@ -11,43 +23,51 @@ async def parse_resume_pipeline(
     file_b64: str,
     filename: str = "resume.pdf",
     mimetype: str = "application/pdf",
+    use_llm: bool = False,
+    job_description: Optional[str] = None,
 ) -> Dict[str, Any]:
-    try:
-        print(f"📄 Starting resume pipeline for user: {user_id}, file={filename}")
+    """
+    Full resume pipeline: validate → parse → ATS score.
 
-        # Step 1: Parse resume
-        parsed = await parse_resume_pdf(file_b64=file_b64)
+    Args:
+        user_id:         ID of the user uploading the resume
+        jwt:             Auth token (passed through for audit/logging)
+        file_b64:        Base64-encoded PDF content
+        filename:        Original filename (used for type validation)
+        mimetype:        MIME type declared by the client
+        use_llm:         Enable Groq LLM feedback on ATS score
+        job_description: Optional JD text for aligned scoring
+    """
+    print(f"📄 Resume pipeline | user={user_id} file={filename} use_llm={use_llm}")
 
-        if not parsed.get("success"):
-            return parsed
+    # upfront file type check — fail fast before any API call
+    err = _validate_file(filename, mimetype)
+    if err:
+        return {"success": False, "error": err}
 
-        parsed_resume = parsed.get("parsed_resume")
-        if not parsed_resume:
-            return {
-                "success": False,
-                "error": "Resume parsing failed: no parsed_resume returned",
-            }
+    # Step 1: parse
+    parsed = await parse_resume_pdf(file_b64=file_b64)
+    if not parsed.get("success"):
+        return {"success": False, "error": parsed.get("error", "Resume parsing failed")}
 
-        # Step 2: ATS scoring (LLM disabled)
-        scored = await score_resume_ats(parsed_resume=parsed_resume, use_llm=False)
+    parsed_resume = parsed.get("parsed_resume")
+    if not parsed_resume:
+        return {"success": False, "error": "parse_resume returned empty result"}
 
-        if not scored.get("success"):
-            return scored
+    # Step 2: ATS score
+    scored = await score_resume_ats(
+        parsed_resume=parsed_resume,
+        use_llm=use_llm,
+        job_description=job_description,
+    )
+    if not scored.get("success"):
+        return {"success": False, "error": scored.get("error", "ATS scoring failed")}
 
-        score_result = scored.get("score_result")
-
-        return {
-            "success": True,
-            "userId": user_id,
-            "filename": filename,
-            "mimetype": mimetype,
-            "parsed_resume": parsed_resume,
-            "score": score_result,
-        }
-
-    except Exception as e:
-        print(f"❌ Resume pipeline error: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-        }
+    return {
+        "success":       True,
+        "userId":        user_id,
+        "filename":      filename,
+        "mimetype":      mimetype,
+        "parsed_resume": parsed_resume,
+        "score":         scored.get("score_result"),
+    }

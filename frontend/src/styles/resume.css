@@ -4,11 +4,89 @@
 /* RESUME PAGE - PROFESSIONAL & COLORFUL */
 /* ========================================= */
 
+/* ========================================= */
+/* SAVED RESUME DISPLAY (inside Upload card) */
+/* ========================================= */
+
+.saved-resume-display {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.saved-resume-icon {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.saved-resume-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.saved-resume-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-resume-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.btn-open-pdf {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: transparent;
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.btn-open-pdf:hover {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.btn-replace--block {
+  width: 100%;
+}
+
+.upload-area--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========================================= */
+/* RESUME 3-COLUMN GRID */
+/* ========================================= */
+
 .resume-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  max-width: 1400px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 /* ========================================= */
@@ -18,6 +96,7 @@
 .resume-column {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .resume-card {
@@ -25,7 +104,8 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
-  height: 100%;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .resume-card-header {
@@ -486,29 +566,17 @@
 /* RESPONSIVE */
 /* ========================================= */
 
-@media (max-width: 1200px) {
-  .resume-container {
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  
-  .resume-column:last-child {
-    grid-column: 1 / -1;
-  }
+/* ≥ 1200px  → 3 columns (handled by base styles above) */
 
-  .metadata-stats {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
+/* < 1200px  → stack to 1 column */
+@media (max-width: 1199px) {
   .resume-container {
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  
+
   .metadata-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .breakdown-row {
@@ -523,11 +591,11 @@
 
 @media (max-width: 480px) {
   .resume-card {
-    padding: 20px;
+    padding: 16px;
   }
-  
+
   .upload-area {
-    padding: 40px 20px;
+    padding: 40px 16px;
   }
 
   .upload-icon svg {
@@ -539,7 +607,7 @@
     width: 64px;
     height: 64px;
   }
-  
+
   .score-number {
     font-size: 40px;
   }
@@ -555,6 +623,10 @@
 
   .breakdown-value {
     font-size: 12px;
+  }
+
+  .metadata-stats {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .stat-value {

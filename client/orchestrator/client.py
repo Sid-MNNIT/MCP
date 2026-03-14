@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 import os
 
-from client.mcp.client import get_mcp_client
+from client.mcp.client import get_mcp_client, close_mcp_client
 from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval,ingest_and_store_emails
 
 from client.orchestrator.job_agent import (
@@ -12,10 +12,20 @@ from client.orchestrator.job_agent import (
 
 # ✅ NEW: import resume pipeline
 from client.orchestrator.resume_agent import parse_resume_pipeline
+from client.wrappers.resume_wrapper import _get_tool as _warm_resume
 
 from client.orchestrator.calendar_agent import create_calendar_event_pipeline
 from client.orchestrator.calendar_email_extractor import extract_calendar_from_email_pipeline
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def on_startup():
+    """Pre-warm the resume MCP connection so the first upload isn't slow."""
+    try:
+        await _warm_resume("ping")
+    except Exception:
+        pass  # ping tool may not exist — that's fine, connection is still warmed
 
 SERVICE_KEY = os.getenv("SERVICE_KEY")
 if not SERVICE_KEY:
@@ -269,6 +279,8 @@ async def resume_parse_pipeline_endpoint(request: Request):
         file_b64=file_b64,
         filename=body.get("filename", "resume.pdf"),
         mimetype=body.get("mimetype", "application/pdf"),
+        use_llm=body.get("use_llm", False),
+        job_description=body.get("job_description", None),
     )
 
     print(f" Resume parse response: success={result.get('success')}")
@@ -364,3 +376,11 @@ async def extract_calendar_from_email_endpoint(request: Request):
     print(f"📤 Calendar extraction response: success={result.get('success')}")
     
     return result
+
+
+# ---------------------------
+# Shutdown: clean up all MCP subprocesses
+# ---------------------------
+@app.on_event("shutdown")
+async def on_shutdown():
+    await close_mcp_client()

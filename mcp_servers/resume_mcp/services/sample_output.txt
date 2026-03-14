@@ -1,59 +1,35 @@
-JOHN DOE
-Backend Engineer
-Email: john.doe@email.com
-Phone: +91-9876543210
-
-SUMMARY
-Experienced software developer with strong backend focus.
-May have worked on several large systems.
-
-EXPERIENCE
-Software Engineer at Alpha Technologies
-Jan 2022 – Dec 2025
-- Built REST APIs using Python and Flask
-- Worked with PostgreSQL and Redis
-
-Backend Engineer – Beta Corp
-Jun 2022 to Jun 2025
-- Designed scalable microservices
-- Deployed services using Docker and Kubernetes
-
-Intern – Gamma Solutions
-July 2021 - Feb 2022
-- Assisted in backend development
-- Wrote unit tests
-
-PROJECTS
-Job Matching Platform
-Mar 2023 – Present
-- Implemented resume parsing pipeline
-- Added ATS scoring logic using rules
-
-Realtime Chat Application
-2020 – 2021
-- Built WebSocket-based chat service
-- Used Redis for message queues
-
-SKILLS & TECHNOLOGIES
-Python, Flask, FastAPI / Django
-PostgreSQL | Redis | MongoDB
-Docker, Kubernetes
-Git / GitHub
-C++ , Java
-
-EDUCATION
-B.Tech in Computer Science
-ABC Institute of Technology
-2018 – 2022
-
-CERTIFICATIONS
-AWS Certified Developer – Associate
-Google Cloud Professional Data Engineer
-
-ACHIEVEMENTS
-- Winner of Hackathon 2023
-- Top 5% performer in coding assessments
-
-OTHER INFORMATION
-Marchant was the name of the internal tool.
-May have collaborated with multiple teams.
+VEER CHAURASIYA  +91-8957567256
+Roll No.: 20245096 # chaurasiyav198@gmail.com
+B.TECH # veer.20245096@mnnit.ac.in
+ELECTRICAL ENGINEERING § GitHub Profile
+Motilal Nehru National Institute of Technology Allahabad,
+Prayagraj
+ï LinkedIn Profile
+Education
+•Motilal Nehru National Institute of Technology Allahabad, Prayagraj 2028
+ELECTRICAL ENGINEERING B.TECH CGPA/Percentage: 7.84
+•ST.XAVIER INTER COLLEGE 2023
+Board of Intermediate Education, UTTAR PRADESH CGPA/Percentage: 89.8
+•ST.XAVIER INTER COLLEGE 2021
+Board of Secondary Education, UTTAR PRADESH CGPA/Percentage: 90.8
+Personal Projects
+•Wheteher APP
+Developed a dynamic weather app that fetches and displays real-time weather data for any location.
+– Tools & technologies used: HTML, CSS, JavaScript, OpenWeatherMap API
+– Built a responsive weather application that provides accurate temperature, humidity, and condition updates with
+a clean and user-friendly interface.)
+•Image Gallery
+Developed a responsive and interactive image gallery with smooth navigation and modern UI effects.
+– Tools & technologies used: HTML, CSS, JavaScript
+– The final project resulted in a fully functional, responsive image gallery that works seamlessly across devices. It
+provides a visually appealing layout, faster image loading, and interactive viewing compared to traditional static
+galleries.
+Technical Skills and Interests
+Languages:Cpp,Python,JavaScript
+Developer Tools:VS Code,PyCharm,Jupyter
+Frameworks:Tailwind CSS,Bootstrap,React.js
+Cloud/Databases:My SQL,MONGODB
+Soft Skills:,Problem Solving, Time Management, Analytical Thinking, Adaptability
+Areas of Interest:Software development,Competitive Programming,Machine Learning
+Achievements
+•Secured 6th Rank all over college in internal hackathon of SIH Sept.2025

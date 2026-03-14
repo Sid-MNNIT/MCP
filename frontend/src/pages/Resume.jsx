@@ -65,14 +65,12 @@ export default function Resume() {
         const score = payload.score || null;
         const parsed = payload.parsed_resume || null;
 
-        if (score) setScoreData(score);
+        // only set score if it's a real result, not an empty {} from a failed pipeline
+        if (score?.final_score !== undefined) setScoreData(score);
 
-        // UI expects { entities: {...} }
+        // pass full parsed_resume so ResumeMetadata has both entities + sections
         if (parsed?.entities) {
-          setMetadataData({ entities: parsed.entities });
-        } else if (parsed?.result?.entities) {
-          // fallback if structure differs
-          setMetadataData({ entities: parsed.result.entities });
+          setMetadataData(parsed);
         } else {
           setMetadataData(null);
         }
@@ -93,10 +91,8 @@ export default function Resume() {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setUploadedFile(file);
-
-      // reset old results until upload
-      setScoreData(null);
-      setMetadataData(null);
+      // do NOT clear scoreData/metadataData here — the stored results stay
+      // visible until the user actually clicks Calculate and a new upload succeeds
     } else {
       alert("Please upload a PDF file");
     }
@@ -123,11 +119,12 @@ export default function Resume() {
       setResumeMeta(payload.resume || null);
 
       // score directly matches ATSScore.jsx expectation
-      setScoreData(payload.score || null);
+      // only set score if pipeline actually returned a real result
+      setScoreData(payload.score?.final_score !== undefined ? payload.score : null);
 
-      // parsed_resume contains entities
+      // pass full parsed_resume so ResumeMetadata has both entities + sections
       const parsed = payload.parsed_resume || {};
-      setMetadataData(parsed?.entities ? { entities: parsed.entities } : null);
+      setMetadataData(parsed?.entities ? parsed : null);
 
       // keep uploadedFile OR clear it - your choice
       // setUploadedFile(null);
@@ -140,9 +137,8 @@ export default function Resume() {
   };
 
   const handleRemoveFile = () => {
+    // only deselect the local file — stored DB results remain visible
     setUploadedFile(null);
-    setScoreData(null);
-    setMetadataData(null);
   };
 
   const handleOpenResume = () => {
@@ -159,32 +155,22 @@ export default function Resume() {
           hideGreeting
         />
 
+        {/* 3-column grid — always locked */}
         <div className="resume-container">
-          {/* Show existing resume open button if resume exists */}
-          {resumeMeta && (
-            <div className="resume-open-banner" style={{ marginBottom: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong>Saved Resume:</strong> {resumeMeta.filename}
-                  {isLoadingResume && <span style={{ marginLeft: 10 }}>(loading...)</span>}
-                </div>
-                <button className="btn-replace" onClick={handleOpenResume}>
-                  Open PDF
-                </button>
-              </div>
-            </div>
-          )}
-
           <ResumeUpload
             uploadedFile={uploadedFile}
+            resumeMeta={resumeMeta}
+            isLoadingResume={isLoadingResume}
             onUpload={handleFileUpload}
             onRemove={handleRemoveFile}
+            onOpenResume={handleOpenResume}
           />
 
           <ATSScore
             scoreData={scoreData}
             uploadedFile={uploadedFile}
             isCalculating={isCalculating}
+            isLoadingResume={isLoadingResume}
             onCalculate={handleCalculate}
           />
 

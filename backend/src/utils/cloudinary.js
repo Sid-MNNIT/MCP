@@ -1,37 +1,29 @@
-import dotenv from "dotenv"
-dotenv.config()
-import {v2 as cloudinary} from "cloudinary"
-import fs from "fs"
+import { v2 as cloudinary } from "cloudinary";
+import streamifier from "streamifier";
 
-cloudinary.config({ 
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-    api_key: process.env.CLOUDINARY_API_KEY, 
-    api_secret: process.env.CLOUDINARY_API_SECRET 
-});
+export async function uploadPdfToCloudinary(buffer, publicId) {
+  // config is read here at call-time, not at import-time
+  // this ensures dotenv has already loaded the env vars
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key:    process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
 
-
-const uploadOnCloudinary = async (localFilePath) => {
-    if (!localFilePath) return null;
-  
-    try {
-      const response = await cloudinary.uploader.upload(localFilePath, {
-        resource_type: "auto",
-        // optional: folder: "ranger_avatars"
-      });
-  
-      console.log("UPLOADED SUCCESSFULLY", response.secure_url);
-      return response; // response.secure_url is strored in avatar
-    } catch (error) {
-      console.error("Cloudinary upload error:", error);
-      throw error; 
-    } finally {
-      // deleting local file
-      try {
-        await fs.unlink(localFilePath);
-      } catch (err) {
-        console.warn("Error deleting temp file:", err.message);
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: "raw",
+        public_id:     publicId,
+        overwrite:     true,
+        folder:        "",
+      },
+      (error, result) => {
+        if (error) return reject(new Error(`Cloudinary upload failed: ${error.message}`));
+        resolve({ url: result.secure_url, public_id: result.public_id });
       }
-    }
-  };
-  
-  export { uploadOnCloudinary };
+    );
+
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+}

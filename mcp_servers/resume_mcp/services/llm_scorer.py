@@ -1,58 +1,38 @@
-"""
-LLM Scorer
-"""
-
 class LLMScorer:
     def __init__(self, client):
         self.client = client
 
-    def evaluate(self, resume, ats_result, job_description=None):
+    def evaluate(self, resume: dict, ats_result: dict, job_description=None) -> dict:
         try:
-            prompt = self._build_prompt(resume, ats_result, job_description)
-            result = self.client.complete(prompt)
-        except Exception as e:
-            return {
-                "feedback": ["LLM unavailable, ATS score used as-is"],
-                "score_adjustment": 0,
-            }
-
-        adjustment = int(result.get("score_adjustment", 0))
-        adjustment = max(-10, min(10, adjustment))
-
+            result = self.client.complete(self._prompt(resume, ats_result, job_description))
+        except Exception:
+            return {"feedback": ["LLM unavailable, ATS score used as-is"], "score_adjustment": 0}
         return {
-            "feedback": result.get("feedback", []),
-            "score_adjustment": adjustment,
+            "feedback":         result.get("feedback", []),
+            "score_adjustment": max(-10, min(10, int(result.get("score_adjustment", 0) or 0))),
         }
 
+    def _prompt(self, resume, ats, jd):
+        e = resume.get("entities", {}) or {}
+        s = resume.get("sections", {}) or {}
+        years  = e.get("experience_years", 0)
+        months = e.get("experience_months", 0)
+        total  = e.get("total_months", years * 12 + months)
+        return f"""ATS resume review.
 
-    def _build_prompt(self, resume, ats_result, jd):
-        return f"""
-You are an ATS resume reviewer.
-
-Rules:
-- Do NOT extract skills
-- Do NOT recalculate experience
-- Do NOT override ATS score
-
-ATS score: {ats_result["total_score"]}
-ATS breakdown: {ats_result["breakdown"]}
-
-Experience years: {resume["entities"].get("experience_years")}
-Roles: {resume["entities"].get("normalized_roles")}
-Skills: {resume["entities"].get("skills")}
+ATS score: {ats.get("total_score", 0)}
+Breakdown: {ats.get("breakdown", {})}
+Experience: {years}y {months}m ({total} months total)
+Roles: {e.get("normalized_roles", [])}
+Skills: {e.get("skills", [])}
 
 Experience section:
-{resume["sections"].get("experience")}
+{(s.get("experience", "") or "(not provided)")[:800]}
 
 Projects section:
-{resume["sections"].get("projects")}
+{(s.get("projects", "") or "(not provided)")[:800]}
 
-Job description:
-{jd if jd else "Not provided"}
+Job description: {jd or "Not provided"}
 
 Return JSON only:
-{{
-  "feedback": ["short actionable suggestion"],
-  "score_adjustment": integer between -10 and +10
-}}
-"""
+{{"feedback": ["short actionable suggestion"], "score_adjustment": integer -10 to +10}}"""
