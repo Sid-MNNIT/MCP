@@ -89,6 +89,19 @@ async sendEmailReply({ draft, userId, jwt }) {
       jwt
     });
   }
+  /*email sync for cron job */
+  async syncEmailsInternal({ userId }) {
+    if (!userId) {
+    throw new Error("userId is required");
+    }
+    
+    
+    return callMCP({
+    endpoint: "/pipelines/email-sync",
+    userId,
+    source: "cron"
+    });
+    }
 }
 
 export const emailService = new EmailService();

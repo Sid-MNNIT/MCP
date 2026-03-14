@@ -106,14 +106,15 @@ async def send_email_with_approval(draft: dict, jwt: str):
 # ============================================================
 # Ingest and store emails (BACKGROUND PIPELINE)
 # ============================================================
-async def ingest_and_store_emails(jwt: str):
-    if not jwt:
-        raise RuntimeError("JWT is required for ingest_and_store_emails")
+async def ingest_and_store_emails(jwt: str = None, user_id: str = None):
+    if not jwt and not user_id:
+        raise RuntimeError("Either JWT or user_id is required")
 
     result = await execute_tool(
         tool="get_recent_job_emails",
         args={},
-        jwt=jwt
+        jwt=jwt,
+        user_id=user_id
     )
 
     # 🔓 MCP response unwrapping
@@ -142,7 +143,7 @@ async def ingest_and_store_emails(jwt: str):
             payload["date"] = payload["date"].isoformat()
 
         # 🔑 PASS JWT EXPLICITLY
-        stored_email = save_email(payload, jwt)
+        stored_email = save_email(payload, jwt=jwt, user_id=user_id)
         stored.append(stored_email)
 
     return stored

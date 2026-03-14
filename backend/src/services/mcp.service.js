@@ -8,7 +8,8 @@ export async function callMCP({
   args = {},
   userId,
   endpoint,
-  jwt
+  jwt,
+  source = "user",
 }) {
   console.log("SERVICE_KEY:", process.env.SERVICE_KEY);
 
@@ -21,11 +22,15 @@ const url = isPipeline
 
   const headers = {
     "Content-Type": "application/json",
-    "X-Service-Key": process.env.SERVICE_KEY
+    "X-Service-Key": process.env.SERVICE_KEY,
+    "X-Request-Source": source,
   };
 
   if (jwt) {
     headers.Authorization = `Bearer ${jwt}`;
+  }
+  if (source === "cron" && userId) {
+    headers["X-User-Id"] = userId; //Send userId in header for cron
   }
 
   const body = isPipeline
@@ -35,7 +40,7 @@ const url = isPipeline
         userId,
         args: {
           ...args,
-          userId          // ✅ KEEP mutation for tools
+          userId          // KEEP mutation for tools
         }
       };
 

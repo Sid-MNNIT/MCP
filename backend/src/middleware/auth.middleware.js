@@ -17,9 +17,14 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
   console.log("TOKEN STRING:", token);
   console.log("DOT COUNT:", token ? token.split(".").length : 0);
 
-  // ✅ 2. If no token → DO NOT verify here
-  // Let route-level auth decide
+  // ✅ 2. If no token — check if it's a trusted internal service call
   if (!token) {
+    const serviceKey = req.headers["x-service-key"];
+    const xUserId = req.headers["x-user-id"];
+    if (serviceKey && serviceKey === process.env.SERVICE_KEY && xUserId) {
+      // Attach a minimal user object so controllers can use req.user._id safely
+      req.user = { _id: xUserId };
+    }
     return next();
   }
 

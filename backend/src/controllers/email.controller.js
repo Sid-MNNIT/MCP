@@ -6,7 +6,12 @@ import { emailService } from "../services/email.service.js";
 const storeEmail = asyncHandler(async (req, res) => {
   console.log("req.user in storeEmail:", req.user);
 
-  const userId = req.user._id;
+  // Support both JWT-authenticated users and internal service/cron calls
+  const userId = req.user?._id || req.headers["x-user-id"] || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized: no userId" });
+  }
 
   const { emailId,threadId, type, from, subject, text, date,folder  } = req.body;
 
@@ -151,8 +156,16 @@ const toggleStarEmail=asyncHandler( async (req,res)=>{
 
 const executeAgentTool=asyncHandler(async (req, res)=> {
   try {
-    const { tool, args } = req.body;
-    const userId = req.user._id;
+    const { tool, args, userId: bodyUserId } = req.body;
+    
+    // Get userId from either JWT (user flow) or body (cron flow)
+    const userId = req.user?._id || bodyUserId;
+    
+    if (!userId) {
+      return res.status(400).json({
+        error: "userId not found - check authentication"
+      });
+    }
 
     const jwt =
       req.headers.authorization?.replace("Bearer ", "") ||
@@ -162,7 +175,7 @@ const executeAgentTool=asyncHandler(async (req, res)=> {
       tool,
       args,
       userId,
-      jwt
+      jwt:jwt||null
     });
 
     return res.json(result);
