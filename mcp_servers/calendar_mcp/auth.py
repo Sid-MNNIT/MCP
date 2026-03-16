@@ -15,11 +15,14 @@ CREDENTIALS_FILE = BASE_DIR / "credentials.json"
 def get_calendar_credentials():
     creds = None
 
-    # Load existing token if present
-    if TOKEN_FILE.exists():
-        creds = Credentials.from_authorized_user_file(
-            TOKEN_FILE, SCOPES
-        )
+    # Load existing token if present and non-empty
+    if TOKEN_FILE.exists() and TOKEN_FILE.stat().st_size > 10:
+        try:
+            creds = Credentials.from_authorized_user_file(
+                TOKEN_FILE, SCOPES
+            )
+        except Exception:
+            creds = None  # Invalid token file, will re-auth
 
     # If no valid creds, do OAuth
     if not creds or not creds.valid:

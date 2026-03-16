@@ -332,6 +332,42 @@ async def job_categories_pipeline_endpoint(request: Request):
 
     return result
 # ============================================================
+# EMAIL INGEST PIPELINE
+# ============================================================
+
+@app.post("/pipelines/ingest-emails")
+async def ingest_emails_endpoint(request: Request):
+    """
+    Ingest recent job emails from Gmail and store them in the backend DB.
+    Supports two flows:
+    - cron (X-Request-Source: cron): no JWT, user_id from header/body, Gmail token fetched server-side
+    - user (default): JWT required, userId from body
+    """
+    body = await request.json()
+    source = request.state.source
+    jwt = request.state.jwt
+    # userId may come from request body (both flows) or state (set by middleware for cron)
+    user_id = body.get("userId") or request.state.user_id
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId required")
+
+    if source == "cron":
+        # Cron flow: no JWT — Gmail token is fetched by MCP subprocess using userId
+        print(f"🤖 [CRON] Ingest emails for user: {user_id}")
+        result = await ingest_and_store_emails(jwt=None, user_id=user_id)
+
+    else:  # source == "user"
+        if not jwt:
+            raise HTTPException(status_code=401, detail="JWT missing")
+        print(f"👤 [USER] Ingest emails for user: {user_id}")
+        result = await ingest_and_store_emails(jwt=jwt, user_id=user_id)
+
+    print(f"📤 Ingest complete: stored {len(result)} emails for user {user_id}")
+    return {"success": True, "stored": len(result), "userId": user_id}
+
+
+# ============================================================
 # CALENDAR PIPELINES
 # ============================================================
 
@@ -418,7 +454,6 @@ async def extract_calendar_from_email_endpoint(request: Request):
     print(f"📤 Calendar extraction response: success={result.get('success')}")
     
     return result
-
 
 
 @app.post("/pipelines/email-query")

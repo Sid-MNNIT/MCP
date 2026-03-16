@@ -104,6 +104,28 @@ INTENT_PHRASES = [
     "move forward with other candidates",
     "not moving forward",
     "profile does not align",
+
+    # Common interview scheduling phrases
+    "schedule an interview",
+    "schedule a call",
+    "schedule a meeting",
+    "like to invite you",
+    "would like to connect",
+    "looking forward to speaking",
+    "next steps",
+    "move forward with your application",
+    "pleased to inform",
+    "happy to inform",
+    "selected for",
+    "selected you",
+    "round of interview",
+    "technical interview",
+    "hr interview",
+    "virtual interview",
+    "video interview",
+    "phone screen",
+    "hiring process",
+    "recruitment process",
 ]
 
 # -----------------------------
@@ -141,7 +163,7 @@ def compute_job_score(email: dict) -> int:
 # -----------------------------
 # FINAL DECISION FUNCTION
 # -----------------------------
-def is_job_related(email: dict, threshold: int = 3) -> bool:
+def is_job_related(email: dict, threshold: int = 2) -> bool:
     """
     Decide if an email should be passed to LLM for validation.
     This is a FAST, recall-focused filter.

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getCurrentUser, startGmailSync, getGmailStatus, getEmailStats } from "../utils/api";
 import "../styles/dashboard.css";
+import "../styles/calendar.css";
 
 import TopHeader from "../components/layout/TopHeader";
 import Sidebar from "../components/layout/Sidebar";

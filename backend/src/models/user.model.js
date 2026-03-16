@@ -144,6 +144,23 @@ const userSchema = new mongoose.Schema(
       default: false
     },
 
+    isCalendarConnected: {
+      type: Boolean,
+      default: false
+    },
+
+    /* -------------------- */
+    /* GOOGLE CALENDAR      */
+    /* -------------------- */
+
+    googleCalendarTokens: {
+      access_token: { type: String },
+      refresh_token: { type: String },
+      scope: { type: String },
+      token_type: { type: String },
+      expiry_date: { type: Number },
+    },
+
     /* -------------------- */
     /* NOTIFICATION PREFS   */
     /* -------------------- */

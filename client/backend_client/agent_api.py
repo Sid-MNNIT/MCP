@@ -1,6 +1,8 @@
 import httpx
+import os
 
 BASE_URL = "http://localhost:5000"
+SERVICE_KEY = os.getenv("SERVICE_KEY", "")
 
 async def execute_tool(tool: str, args: dict, jwt: str = None, user_id: str = None):
     """
@@ -16,14 +18,20 @@ async def execute_tool(tool: str, args: dict, jwt: str = None, user_id: str = No
     else:
         print(f"👤 [USER] Executing tool: {tool} with JWT")
 
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "X-Service-Key": SERVICE_KEY,  # Always send service key
+    }
     
     if jwt:
         headers["Authorization"] = f"Bearer {jwt}"
 
-    if source == "cron" and user_id:
+    if user_id:
+        # Always send X-User-Id when available so Node's service-key bypass works
+        headers["X-User-Id"] = str(user_id)
+
+    if source == "cron":
         headers["X-Request-Source"] = "cron"
-        headers["X-User-Id"] = user_id    
     
     payload = {"tool": tool, "args": args}
     

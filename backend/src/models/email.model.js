@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 
 const emailSchema = new mongoose.Schema(
   {
+    calendarEventCreated: {
+      type: Boolean,
+      default: false,
+    },
+
+    // Set to true when user explicitly deletes the calendar event —
+    // prevents the cron from ever recreating it from this email
+    calendarEventDeleted: {
+      type: Boolean,
+      default: false,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

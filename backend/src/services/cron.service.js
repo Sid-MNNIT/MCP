@@ -17,7 +17,7 @@ class CronService {
     }
 
     const job = cron.schedule(
-      "*/1 * * * *",
+      "*/15 * * * *",
       async () => {
         if (this.isEmailSyncRunning) {
           console.log("⏭️ [CRON] Email sync already running, skipping");

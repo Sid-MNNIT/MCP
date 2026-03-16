@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import {app} from "./app.js";
+import { startEmailSyncJob } from "./jobs/emailSync.job.js";  
 
 import express from "express";
 import mongoose from "mongoose";
@@ -14,7 +15,8 @@ connectDB()
         
          // Start cron jobs
       console.log("🚀 Initializing cron jobs...");
-      cronService.startEmailSyncJob();
+      startEmailSyncJob(); // handles both email ingest + calendar event creation
+
     });
 })
 .catch((err)=>{

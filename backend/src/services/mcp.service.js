@@ -29,8 +29,8 @@ const url = isPipeline
   if (jwt) {
     headers.Authorization = `Bearer ${jwt}`;
   }
-  if (source === "cron" && userId) {
-    headers["X-User-Id"] = userId; //Send userId in header for cron
+  if (userId) {
+    headers["X-User-Id"] = String(userId); // Always send userId so backend service-key bypass works
   }
 
   const body = isPipeline

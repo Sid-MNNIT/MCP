@@ -19,7 +19,7 @@ mcp = FastMCP("gmail-mcp")
 def get_recent_job_emails(
     userId: str,
     lookback_days: int = 14,
-    max_results: int = 30
+    max_results: int = 100
 ):
     service = get_gmail_service(userId)
 

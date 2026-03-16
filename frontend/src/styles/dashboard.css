@@ -185,7 +185,7 @@
 .resume-overview,
 .job-market,
 .recruiter-activity,
-.calendar-card,
+.cal-card,
 .event-card,
 .ask-jobsy-card {
   background: var(--bg-card);
@@ -207,7 +207,7 @@
 .resume-overview:hover,
 .job-market:hover,
 .recruiter-activity:hover,
-.calendar-card:hover,
+.cal-card:hover,
 .event-card:hover,
 .ask-jobsy-card:hover {
   transform: translateY(-4px);
@@ -334,11 +334,11 @@
   display: grid;
   grid-template-columns: 3fr 2fr;
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
-.polish-card { /* takes left column */ }
-.recruiter-activity { /* takes right column */ }
+.polish-card { /* takes left column */ background: var(--bg-card);}
+.recruiter-activity { /* takes right column */background: var(--bg-card); }
 
 .polish-card {
   padding: 26px;
@@ -1013,11 +1013,11 @@
     transform: translateX(-100%);
   }
   .dashboard-status-grid { grid-template-columns: 1fr; }
-  .polish-header { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+  .polish-top { grid-template-columns: 1fr; text-align: center; justify-items: center; }
   .greeting { font-size: 22px; }
   .status-main { font-size: 20px; }
-  .calendar-card { padding: 16px; }
-  .calendar-cell { height: 38px; font-size: 12px; }
+  .cal-card { padding: 16px; }
+  .cal-cell { height: 38px; font-size: 12px; }
 }
 
 /* ================================================= */
@@ -1038,7 +1038,7 @@
 [data-theme="dark"] .resume-overview,
 [data-theme="dark"] .job-market,
 [data-theme="dark"] .recruiter-activity,
-[data-theme="dark"] .calendar-card,
+[data-theme="dark"] .cal-card,
 [data-theme="dark"] .event-card,
 [data-theme="dark"] .ask-jobsy-card {
   background-color: var(--bg-card);
@@ -1050,7 +1050,7 @@
 [data-theme="dark"] .resume-overview:hover,
 [data-theme="dark"] .job-market:hover,
 [data-theme="dark"] .recruiter-activity:hover,
-[data-theme="dark"] .calendar-card:hover,
+[data-theme="dark"] .cal-card:hover,
 [data-theme="dark"] .event-card:hover,
 [data-theme="dark"] .ask-jobsy-card:hover {
   border-color: rgba(59, 130, 246, 0.3);
@@ -1235,6 +1235,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 100%;
+  justify-content: space-between;
+  box-sizing: border-box;
 }
 
 .recruiter-stats-grid {
@@ -1316,6 +1319,7 @@
 /* Dark mode tweaks */
 [data-theme="dark"] .recruiter-stat-card {
   /* soft tints become slightly darker in dark mode via the inline vars */
+  background: var(--bg-card);
 }
 
 [data-theme="dark"] .recruiter-stat-icon {
