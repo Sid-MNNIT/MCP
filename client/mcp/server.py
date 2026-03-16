@@ -14,12 +14,10 @@ SERVERS = {
         "cwd": str(PROJECT_ROOT / "mcp_servers" / "gmail_mcp"),
         "transport": "stdio",
     },
-    # "resume": {
-    #     "command": str(PYTHON),
-    #     "args": ["main.py"],
-    #     "cwd": str(PROJECT_ROOT / "mcp_servers" / "resume_mcp"),
-    #       "transport": "stdio",
-    # },
+     "resume": {
+        "url": "http://127.0.0.1:8001/mcp",
+        "transport": "streamable_http",
+    },
      "job_search": {
         "command": str(PYTHON),
         "args": ["main.py"],

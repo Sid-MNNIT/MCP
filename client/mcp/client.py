@@ -9,3 +9,8 @@ async def get_mcp_client() -> MultiServerMCPClient:
     if _mcp_client is None:
         _mcp_client = MultiServerMCPClient(SERVERS)
     return _mcp_client
+
+async def close_mcp_client():
+    """Reset the singleton on shutdown."""
+    global _client
+    _client = None

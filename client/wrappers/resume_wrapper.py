@@ -1,73 +1,98 @@
-from typing import Dict, Any
+import json
+from typing import Dict, Any, Optional
+from client.mcp.client import get_mcp_client
 
-# Helpers
-def _safe_list(value):
-    if isinstance(value, list):
-        return value
-    return []
-
-
-def _safe_str(value):
-    if isinstance(value, str):
-        return value.strip()
-    return ""
+# cached tool lookup — only populated once, cleared on error
+_tools: Dict[str, Any] = {}
 
 
-def _safe_int(value, default=0):
+def _clear_tools_cache():
+    global _tools
+    _tools = {}
+
+
+async def _get_tool(name: str):
+    """
+    Fetch tools from the 'resume' server only — avoids spawning gmail/job_search
+    subprocesses when only resume tools are needed. Caches results.
+    """
+    global _tools
+    if not _tools:
+        print(f"[WRAPPER] _tools cache empty, calling get_mcp_client...", flush=True)
+        mcp = await get_mcp_client()
+        print(f"[WRAPPER] got mcp client, calling get_tools(server_name='resume')...", flush=True)
+        all_tools = await mcp.get_tools(server_name="resume")
+        print(f"[WRAPPER] got tools: {[t.name for t in all_tools]}", flush=True)
+        _tools = {t.name: t for t in all_tools}
+
+    tool = _tools.get(name)
+    if not tool:
+        _clear_tools_cache()
+        raise RuntimeError(f"MCP tool '{name}' not found. Is resume_mcp running?")
+    return tool
+
+
+def _unwrap(result) -> dict:
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, list):
+        for item in result:
+            if isinstance(item, dict) and item.get("type") == "text":
+                return json.loads(item["text"])
+        first = result[0] if result else {}
+        return first if isinstance(first, dict) else {}
+    raise ValueError(f"Unexpected MCP response type: {type(result)}")
+
+
+async def parse_resume_pdf(file_b64: str) -> Dict[str, Any]:
+    """Call resume_mcp:parse_resume."""
     try:
-        return int(value)
-    except Exception:
-        return default
+        print("[WRAPPER] getting tool: parse_resume...", flush=True)
+        tool = await _get_tool("parse_resume")
+        print("[WRAPPER] calling ainvoke on parse_resume...", flush=True)
+        raw_result = await tool.ainvoke({"file_b64": file_b64})
+        print(f"[WRAPPER] ainvoke returned: type={type(raw_result)}, val={repr(raw_result)[:300]}", flush=True)
+        data = _unwrap(raw_result)
+        print(f"[WRAPPER] unwrapped data: {repr(data)[:300]}", flush=True)
+    except Exception as e:
+        print(f"[WRAPPER] EXCEPTION in parse_resume_pdf: {e}", flush=True)
+        _clear_tools_cache()
+        return {"success": False, "error": f"MCP connection error: {str(e)}"}
 
-# Main wrapper
-def normalize_resume_mcp_response(mcp_response: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normalize output from resume MCP.
+    if data.get("status") != "ok":
+        return {"success": False, "error": data.get("message") or "parse_resume failed"}
 
-    Expected MCP response:
-    {
-      "status": "ok",
-      "result": {
-        "sections": {...},
-        "entities": {...}
-      }
-    }
-    """
+    return {"success": True, "parsed_resume": data.get("result", {})}
 
-    if not mcp_response or mcp_response.get("status") != "ok":
-        return {
-            "status": "error",
-            "error": mcp_response.get("error", "UNKNOWN_ERROR"),
-            "message": mcp_response.get("message", "Resume parsing failed"),
+
+async def score_resume_ats(
+    parsed_resume: dict,
+    use_llm: bool = False,
+    job_description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Call resume_mcp:ats_score."""
+    try:
+        print("[WRAPPER] getting tool: ats_score...", flush=True)
+        tool = await _get_tool("ats_score")
+        print("[WRAPPER] calling ainvoke on ats_score...", flush=True)
+
+        args = {
+            "parsed_resume": json.dumps(parsed_resume),
+            "use_llm": use_llm,
         }
+        if job_description is not None:
+            args["job_description"] = job_description
 
-    result = mcp_response.get("result", {})
+        raw_result = await tool.ainvoke(args)
+        print(f"[WRAPPER] ainvoke returned: type={type(raw_result)}, val={repr(raw_result)[:300]}", flush=True)
+        data = _unwrap(raw_result)
+        print(f"[WRAPPER] unwrapped data: {repr(data)[:300]}", flush=True)
+    except Exception as e:
+        print(f"[WRAPPER] EXCEPTION in score_resume_ats: {e}", flush=True)
+        _clear_tools_cache()
+        return {"success": False, "error": f"MCP connection error: {str(e)}"}
 
-    sections = result.get("sections", {})
-    entities = result.get("entities", {})
+    if data.get("status") != "ok":
+        return {"success": False, "error": data.get("message") or "ats_score failed"}
 
-    normalized = {
-        "sections": {
-            "experience": _safe_str(sections.get("experience")),
-            "projects": _safe_str(sections.get("projects")),
-            "skills": _safe_str(sections.get("skills")),
-            "education": _safe_str(sections.get("education")),
-            "certifications": _safe_str(sections.get("certifications")),
-            "achievements": _safe_str(sections.get("achievements")),
-            "other": _safe_str(sections.get("other")),
-        },
-        "entities": {
-            "roles": _safe_list(entities.get("roles")),
-            "normalized_roles": _safe_list(entities.get("normalized_roles")),
-            "seniority": _safe_list(entities.get("seniority")),
-            "skills": _safe_list(entities.get("skills")),
-            "companies": _safe_list(entities.get("companies")),
-            "dates": _safe_list(entities.get("dates")),
-            "experience_years": _safe_int(entities.get("experience_years")),
-        }
-    }
-
-    return {
-        "status": "ok",
-        "resume": normalized
-    }
+    return {"success": True, "score_result": data.get("result", {})}

@@ -508,3 +508,72 @@ export const updateNotificationPrefs = async (prefs) => {
   if (!res.ok) throw new Error("Failed to update notification preferences");
   return res.json();
 };
+
+
+/* ===================================================== */
+/* Resume APIs                                           */
+/* ===================================================== */
+
+export const uploadResume = async (file) => {
+  const formData = new FormData();
+  formData.append("resume", file); // IMPORTANT: must match multer upload.single("resume")
+
+  const res = await fetch(`${BASE_URL}/resume`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Failed to upload resume");
+  }
+
+  return res.json();
+};
+
+export const getMyResume = async () => {
+  const res = await fetch(`${BASE_URL}/resume`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Failed to fetch resume");
+  }
+
+  return res.json();
+};
+
+// URL for opening PDF in a new tab (cookie auth included)
+export const getResumeFileUrl = () => `${BASE_URL}/resume/file`;
+
+export const deleteResume = async () => {
+  const res = await fetch(`${BASE_URL}/resume`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Failed to delete resume");
+  }
+  return res.json();
+};
+
+/**
+ * Re-score the stored parsed_resume with the latest ATS scorer.
+ * No file upload needed — uses what’s already in MongoDB.
+ */
+export const recalculateScore = async () => {
+  const res = await fetch(`${BASE_URL}/resume/recalculate`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || "Failed to recalculate score");
+  }
+
+  return res.json();
+};

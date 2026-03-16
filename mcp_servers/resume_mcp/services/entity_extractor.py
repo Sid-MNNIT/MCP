@@ -2,277 +2,294 @@ import re
 from functools import lru_cache
 from datetime import datetime
 
-# ==================================================
-# TIME CONSTANTS
-# ==================================================
+# ---------------------------------------------------------------------------
+# Student signal detection
+# ---------------------------------------------------------------------------
 
-CURRENT_YEAR = datetime.now().year
+# Degree keywords that indicate an ongoing/recent undergraduate or postgraduate
+STUDENT_DEGREE_RE = re.compile(
+    r"\b(b\.?tech|b\.?e\.?|b\.?sc|b\.?s\.?|bca|bba|b\.?com|b\.?a\.?|"
+    r"m\.?tech|m\.?e\.?|m\.?sc|m\.?s\.?|mca|mba|"
+    r"bachelor|master|undergraduate|postgraduate|"
+    r"engineering student|computer science student|"
+    r"pursuing|currently enrolled|enrolled in)\b",
+    re.IGNORECASE,
+)
+
+# Phrases that explicitly signal a current student
+STUDENT_SIGNAL_RE = re.compile(
+    r"\b("
+    r"1st year|2nd year|3rd year|4th year|"
+    r"first year|second year|third year|fourth year|"
+    r"freshman|sophomore|senior year|"
+    r"expected graduation|expected grad|graduating in|"
+    r"currently pursuing|currently studying|"
+    r"semester|cgpa|gpa|sgpa|"
+    r"university|college|institute of technology|iit|nit|bits|"
+    r"school of|faculty of"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_is_student(sections: dict) -> bool:
+    """Return True if the resume belongs to a current student, universally."""
+    edu_text  = sections.get("education", "") or ""
+    proj_text = sections.get("projects", "") or ""
+    exp_text  = sections.get("experience", "") or ""
+    full_text = edu_text + "\n" + proj_text + "\n" + exp_text
+
+    has_degree_keyword    = bool(STUDENT_DEGREE_RE.search(full_text))
+    has_student_signal    = bool(STUDENT_SIGNAL_RE.search(full_text))
+    has_education_section = bool(edu_text.strip())
+
+    # Strong: degree keyword + at least one student phrase
+    if has_degree_keyword and has_student_signal:
+        return True
+    # Medium: education section present + student phrase (covers GPA, semester etc.)
+    if has_education_section and has_student_signal:
+        return True
+    # Degree keyword alone inside an education section is enough
+    if has_education_section and has_degree_keyword:
+        return True
+    return False
+
+
+CURRENT_YEAR  = datetime.now().year
 CURRENT_MONTH = datetime.now().month
 
 MONTH_MAP = {
-    "jan": 1, "january": 1,
-    "feb": 2, "february": 2,
-    "mar": 3, "march": 3,
-    "apr": 4, "april": 4,
-    "may": 5,
-    "jun": 6, "june": 6,
-    "jul": 7, "july": 7,
-    "aug": 8, "august": 8,
-    "sep": 9, "sept": 9, "september": 9,
-    "oct": 10, "october": 10,
-    "nov": 11, "november": 11,
-    "dec": 12, "december": 12,
+    "jan":1,"january":1,"feb":2,"february":2,"mar":3,"march":3,
+    "apr":4,"april":4,"may":5,"jun":6,"june":6,"jul":7,"july":7,
+    "aug":8,"august":8,"sep":9,"sept":9,"september":9,
+    "oct":10,"october":10,"nov":11,"november":11,"dec":12,"december":12,
 }
 
-# ==================================================
-# ROLE PATTERNS (FULL, YOUR LIST)
-# ==================================================
-
 ROLE_PATTERNS = [
-    "engineer", "developer", "programmer", "technologist",
-    "technical associate", "intern", "trainee",
-    "graduate engineer trainee", "get",
-    "sde", "sde i", "sde ii", "sde iii",
-
-    "software engineer", "software developer",
-    "application developer", "systems engineer",
-    "platform engineer", "product engineer",
-
-    "backend engineer", "backend developer",
-    "server-side engineer", "api engineer",
-    "microservices engineer",
-
-    "frontend engineer", "frontend developer",
-    "ui engineer", "ui developer",
-    "web developer", "javascript developer",
-
-    "full stack engineer", "full-stack engineer",
-    "full stack developer", "full-stack developer",
-
-    "data scientist", "data engineer", "data analyst",
-    "machine learning engineer", "ml engineer",
-    "ai engineer", "research engineer",
-    "applied scientist", "business intelligence engineer",
-    "bi engineer",
-
-    "devops engineer", "site reliability engineer", "sre",
-    "cloud engineer", "infrastructure engineer",
-    "platform reliability engineer",
-
-    "security engineer", "application security engineer",
-    "cyber security engineer", "information security engineer",
-    "penetration tester", "ethical hacker",
-
-    "mobile engineer", "android developer", "android engineer",
-    "ios developer", "ios engineer",
-    "flutter developer", "react native developer",
-
-    "qa engineer", "quality assurance engineer",
-    "test engineer", "software tester",
-    "automation engineer", "automation test engineer",
-
-    "embedded engineer", "firmware engineer",
-    "hardware engineer", "systems programmer",
-
-    "blockchain developer", "blockchain engineer",
-    "web3 developer", "smart contract developer",
-
-    "technical product manager", "product manager",
-    "program manager", "engineering manager",
-
-    "junior engineer", "associate engineer",
-    "senior engineer", "lead engineer",
-    "principal engineer", "staff engineer",
-    "architect", "solutions architect",
+    "engineer","developer","programmer","technologist","technical associate",
+    "intern","trainee","graduate engineer trainee",
+    "sde","sde i","sde ii","sde iii",
+    "software engineer","software developer","application developer",
+    "systems engineer","platform engineer","product engineer",
+    "backend engineer","backend developer","server-side engineer",
+    "api engineer","microservices engineer",
+    "frontend engineer","frontend developer","ui engineer","ui developer",
+    "web developer","javascript developer",
+    "full stack engineer","full-stack engineer","full stack developer","full-stack developer",
+    "data scientist","data engineer","data analyst",
+    "machine learning engineer","ml engineer","ai engineer","research engineer",
+    "applied scientist","business intelligence engineer","bi engineer",
+    "devops engineer","site reliability engineer","sre",
+    "cloud engineer","infrastructure engineer","platform reliability engineer",
+    "security engineer","application security engineer",
+    "cyber security engineer","information security engineer",
+    "penetration tester","ethical hacker",
+    "mobile engineer","android developer","android engineer",
+    "ios developer","ios engineer","flutter developer","react native developer",
+    "qa engineer","quality assurance engineer","test engineer","software tester",
+    "automation engineer","automation test engineer",
+    "embedded engineer","firmware engineer","hardware engineer","systems programmer",
+    "blockchain developer","blockchain engineer","web3 developer","smart contract developer",
+    "technical product manager","product manager","program manager","engineering manager",
+    "junior engineer","associate engineer","senior engineer","lead engineer",
+    "principal engineer","staff engineer","architect","solutions architect",
 ]
 
 ROLE_REGEX = re.compile(
-    "|".join(rf"\b{re.escape(r)}\b" for r in ROLE_PATTERNS),
-    re.IGNORECASE
+    "|".join(rf"\b{re.escape(r)}\b" for r in ROLE_PATTERNS), re.IGNORECASE
 )
 
-# ==================================================
-# ROLE NORMALIZATION + SENIORITY
-# ==================================================
-
-ROLE_CANONICAL_MAP = {
-    "sde": "software engineer",
-    "sde i": "software engineer",
-    "sde ii": "software engineer",
-    "sde iii": "software engineer",
-
-    "backend developer": "backend engineer",
-    "api engineer": "backend engineer",
-    "microservices engineer": "backend engineer",
-
-    "frontend developer": "frontend engineer",
-    "ui developer": "frontend engineer",
-    "web developer": "frontend engineer",
-
-    "full stack developer": "full stack engineer",
-    "full-stack developer": "full stack engineer",
-
-    "ml engineer": "machine learning engineer",
-    "ai engineer": "machine learning engineer",
-
-    "software tester": "qa engineer",
+ROLE_CANONICAL = {
+    "sde":"software engineer","sde i":"software engineer",
+    "sde ii":"software engineer","sde iii":"software engineer",
+    "backend developer":"backend engineer","api engineer":"backend engineer",
+    "microservices engineer":"backend engineer",
+    "frontend developer":"frontend engineer","ui developer":"frontend engineer",
+    "web developer":"frontend engineer",
+    "full stack developer":"full stack engineer","full-stack developer":"full stack engineer",
+    "ml engineer":"machine learning engineer","ai engineer":"machine learning engineer",
+    "software tester":"qa engineer",
 }
 
-SENIORITY_KEYWORDS = {
-    "intern": "intern",
-    "trainee": "intern",
-    "junior": "junior",
-    "associate": "junior",
-    "senior": "senior",
-    "lead": "lead",
-    "principal": "principal",
-    "staff": "staff",
-    "manager": "manager",
-    "architect": "architect",
+SENIORITY = {
+    "intern":"intern","trainee":"intern","junior":"junior","associate":"junior",
+    "senior":"senior","lead":"lead","principal":"principal",
+    "staff":"staff","manager":"manager","architect":"architect",
 }
 
-def normalize_role(role):
-    return ROLE_CANONICAL_MAP.get(role, role)
-
-def extract_seniority(role):
-    for key, level in SENIORITY_KEYWORDS.items():
-        if key in role:
-            return level
-    return None
-
-# ==================================================
-# DATE REGEX
-# ==================================================
-
-MONTH_RANGE_PATTERN = re.compile(
-    r"""
+MONTH_RANGE_RE = re.compile(r"""
     (jan|january|feb|february|mar|march|apr|april|may|
      jun|june|jul|july|aug|august|sep|sept|september|
      oct|october|nov|november|dec|december)
-    [\s,\-’']*
-    ((?:19|20)\d{2})
+    [\s,\-'']*  ((?:19|20)\d{2})
     \s*(?:-|–|to)\s*
     (jan|january|feb|february|mar|march|apr|april|may|
      jun|june|jul|july|aug|august|sep|sept|september|
      oct|october|nov|november|dec|december|present)
-    [\s,\-’']*
-    ((?:19|20)\d{2})?
-    """,
-    re.IGNORECASE | re.VERBOSE
+    [\s,\-'']* ((?:19|20)\d{2})?
+""", re.IGNORECASE | re.VERBOSE)
+
+YEAR_RANGE_RE = re.compile(
+    r"\b((?:19|20)\d{2})\s*(?:-|–|to)\s*((?:19|20)\d{2}|present)\b", re.IGNORECASE
 )
 
-YEAR_PATTERN = re.compile(r"\b(?:19|20)\d{2}\b")
+YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
 
-# ==================================================
-# SPACY (CONSTRAINED FALLBACK)
-# ==================================================
+TECH_RE = re.compile(
+    r"\b(python|java(?:script)?|typescript|golang?|rust|c\+\+|c#|ruby|php|swift|kotlin|"
+    r"react|angular|vue|next\.?js|node\.?js|django|flask|fastapi|spring|express|"
+    r"postgresql|mysql|mongodb|redis|sqlite|cassandra|dynamodb|elasticsearch|"
+    r"docker|kubernetes|k8s|aws|gcp|azure|git|linux|nginx|terraform|ansible|"
+    r"tensorflow|pytorch|pandas|numpy|scikit[\-. ]learn|"
+    r"rest(?:ful)?|graphql|grpc|kafka|rabbitmq|celery|"
+    r"html5?|css3?|tailwind|bootstrap|sass|"
+    # Modern tools commonly missing from base list
+    r"langchain|openai|groq|spacy|pymupdf|pdfplumber|"
+    r"firebase|supabase|prisma|mongoose|sequelize|"
+    r"jwt|oauth|mcp|rag|llm|nlp|"
+    r"postman|vscode|vercel|netlify)\b", re.IGNORECASE
+)
+
+COMPANY_PATTERNS = [
+    re.compile(r"\bat\s+([A-Z][A-Za-z0-9&.\- ]{2,30})(?:\s*[,|]|$)"),
+    re.compile(r"[-–|]\s*([A-Z][A-Za-z0-9&.\- ]{2,30})$"),
+    re.compile(
+        r"^([A-Z][A-Za-z0-9&.\- ]{2,30})\s*[|–-]\s*(?:" +
+        "|".join(re.escape(r) for r in ROLE_PATTERNS[:25]) + r")", re.IGNORECASE
+    ),
+    re.compile(r"^([A-Z][A-Za-z0-9&.\- ]{2,30}),\s*[A-Z][a-z]"),
+]
+
 
 @lru_cache(maxsize=1)
-def _load_spacy():
+def _spacy():
     try:
         import spacy
         return spacy.load("en_core_web_sm")
     except Exception:
         return None
 
-# ==================================================
-# EXPERIENCE UTILS
-# ==================================================
 
-def _completed_years(sy, sm, ey, em):
-    months = (ey - sy) * 12 + (em - sm)
-    years = months // 12
-    if months % 12 >= 11:
-        years += 1
-    return max(years, 0)
+def _parse_skills(text):
+    """
+    Parse skills section — handles label:value format (e.g. "Languages:Python,JS")
+    and protects parenthetical groups (e.g. "Django (ORM, REST)").
+    """
+    if not text:
+        return set()
+    skills = set()
+    for raw_line in text.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        # strip "Label:" prefix common in student resumes
+        m = re.match(r'^[A-Za-z][A-Za-z\s&/]{0,35}:\s*(.*)', line)
+        if m:
+            line = m.group(1).strip()
+            if not line:
+                continue
+        # protect commas inside parentheses
+        line = re.sub(r"\(([^)]*)\)", lambda x: "(" + x.group(1).replace(",", "§") + ")", line)
+        for part in re.split(r"[,|]", line):
+            skill = part.replace("§", ",").strip()
+            if 1 < len(skill) <= 60:
+                skills.add(skill)
+    return skills
 
-# ==================================================
-# MAIN EXTRACTOR
-# ==================================================
+
+def _walk_months(sy, sm, ey, em, worked):
+    """Add every (year, month) tuple in range to worked set."""
+    y, mo = sy, sm
+    while (y, mo) <= (ey, em):
+        worked.add((y, mo))
+        mo += 1
+        if mo > 12:
+            mo, y = 1, y + 1
+
 
 def extract_entities(sections):
-    entities = {
-        "roles": set(),
-        "normalized_roles": set(),
-        "seniority": set(),
-        "skills": set(),
-        "companies": set(),
-        "dates": set(),
-        "experience_years": 0,
-    }
+    roles, norm_roles, seniority, skills, companies = set(), set(), set(), set(), set()
+    dates, worked_months = set(), set()
 
-    # ---------- SKILLS ----------
-    for skill in re.split(r"[,\n/|]", sections.get("skills", "")):
-        skill = skill.strip()
-        if 1 < len(skill) <= 40:
-            entities["skills"].add(skill)
+    skills.update(_parse_skills(sections.get("skills", "") or ""))
 
-    experience_text = sections.get("experience", "")
-    project_text = sections.get("projects", "")
-    combined_text = experience_text + "\n" + project_text
-    experience_lines = experience_text.split("\n")
+    exp_text  = sections.get("experience", "") or ""
+    proj_text = sections.get("projects", "") or ""
+    combined  = exp_text + "\n" + proj_text
+    exp_lines = exp_text.split("\n")
 
-    # ---------- ROLES ----------
+    # inline tech skills from bullets — scan both experience AND projects
+    for m in TECH_RE.finditer(combined):
+        skills.add(m.group().strip())
+
+    # roles + companies — experience section only
     role_lines = []
-    for line in experience_lines:
+    for line in exp_lines:
         m = ROLE_REGEX.search(line)
         if m:
             role = m.group().lower()
             role_lines.append(line.strip())
-            entities["roles"].add(role)
-            entities["normalized_roles"].add(normalize_role(role))
-            level = extract_seniority(role)
+            roles.add(role)
+            norm_roles.add(ROLE_CANONICAL.get(role, role))
+            level = next((v for k, v in SENIORITY.items() if k in role), None)
             if level:
-                entities["seniority"].add(level)
+                seniority.add(level)
 
-    # ---------- COMPANIES (STRUCTURE FIRST) ----------
-    COMPANY_PATTERNS = [
-        re.compile(r"\bat\s+([A-Z][A-Za-z0-9&.\- ]{2,})$"),
-        re.compile(r"[-–|]\s*([A-Z][A-Za-z0-9&.\- ]{2,})$"),
-    ]
-
-    for line in role_lines:
+    for line in exp_lines:
+        s = line.strip()
+        if not s:
+            continue
         for p in COMPANY_PATTERNS:
-            m = p.search(line)
+            m = p.search(s)
             if m:
-                entities["companies"].add(m.group(1).strip())
+                companies.add(m.group(1).strip())
+                break
 
-    # ---------- COMPANIES (SPACY FALLBACK, CLEAN) ----------
-    nlp = _load_spacy()
+    nlp = _spacy()
     if nlp and role_lines:
-        doc = nlp("\n".join(role_lines))
-        for ent in doc.ents:
-            if ent.label_ == "ORG":
-                name = ent.text.strip()
-                if "\n" not in name and len(name) > 2:
-                    entities["companies"].add(name)
+        for ent in nlp("\n".join(role_lines)).ents:
+            if ent.label_ == "ORG" and "\n" not in ent.text and len(ent.text) > 2:
+                companies.add(ent.text.strip())
 
-    # ---------- DATES ----------
-    for y in YEAR_PATTERN.findall(combined_text):
-        entities["dates"].add(y)
+    # Dates for metadata — scan combined (experience + projects)
+    for y in YEAR_RE.findall(combined):
+        dates.add(y)
 
-    # ---------- EXPERIENCE YEARS ----------
-    years = set()
-    for m in MONTH_RANGE_PATTERN.findall(combined_text.lower()):
-        sm, sy, em, ey = m[0], int(m[1]), m[2], m[3]
-        sm = MONTH_MAP[sm.lower()]
-        if em.lower() == "present":
-            em = CURRENT_MONTH
-            ey = CURRENT_YEAR
+    # Work duration — EXPERIENCE SECTION ONLY.
+    # Project dates (e.g. "Dec 2025 – Present") must NOT inflate total_months
+    # or a student with side-projects looks like a 1yr+ professional.
+    exp_lower = exp_text.lower()
+
+    # month ranges: "Jan 2022 – Dec 2023"
+    for g in MONTH_RANGE_RE.findall(exp_lower):
+        sy, sm = int(g[1]), MONTH_MAP[g[0]]
+        if g[2] == "present":
+            ey, em = CURRENT_YEAR, CURRENT_MONTH
         else:
-            em = MONTH_MAP[em.lower()]
-            ey = int(ey)
-        for y in range(sy, sy + _completed_years(sy, sm, ey, em)):
-            years.add(y)
+            em = MONTH_MAP.get(g[2], 1)
+            ey = int(g[3]) if g[3] else CURRENT_YEAR
+        _walk_months(sy, sm, ey, em, worked_months)
 
-    entities["experience_years"] = len(years)
+    # year-only ranges: "2022 – 2024"
+    for g in YEAR_RANGE_RE.findall(exp_text):
+        sy = int(g[0])
+        ey = CURRENT_YEAR if g[1].lower() == "present" else int(g[1])
+        for y in range(sy, min(ey + 1, CURRENT_YEAR + 1)):
+            for mo in range(1, 13):
+                if y == CURRENT_YEAR and mo > CURRENT_MONTH:
+                    break
+                worked_months.add((y, mo))
 
+    total   = len(worked_months)
     return {
-        "roles": sorted(entities["roles"]),
-        "normalized_roles": sorted(entities["normalized_roles"]),
-        "seniority": sorted(entities["seniority"]),
-        "skills": sorted(entities["skills"]),
-        "companies": sorted(entities["companies"]),
-        "dates": sorted(entities["dates"]),
-        "experience_years": entities["experience_years"],
+        "is_student":        _detect_is_student(sections),
+        "roles":             sorted(roles),
+        "normalized_roles":  sorted(norm_roles),
+        "seniority":         sorted(seniority),
+        "skills":            sorted(s for s in skills if s),
+        "companies":         sorted(companies),
+        "dates":             sorted(dates),
+        "experience_years":  total // 12,
+        "experience_months": total % 12,
+        "total_months":      total,
     }

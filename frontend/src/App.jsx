@@ -8,6 +8,7 @@ import Job from "./pages/Jobs";
 import Settings from "./pages/Settings";
 import AskAI from "./pages/AskAI";
 import AskAIFab from "./components/common/AskAIFab";
+import Resume from "./pages/Resume";
 
 function AppInner() {
   const location = useLocation();
@@ -24,6 +25,7 @@ function AppInner() {
         <Route path="/jobs" element={<ProtectedRoute><Job /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/ask-ai" element={<ProtectedRoute><AskAI /></ProtectedRoute>} />
+        <Route path="/resume" element={<ProtectedRoute><Resume /></ProtectedRoute>} />
       </Routes>
       {!hideFab && <AskAIFab />}
     </>
