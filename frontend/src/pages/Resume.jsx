@@ -67,6 +67,11 @@ export default function Resume() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [isLoadingResume, setIsLoadingResume] = useState(false);
 
+  // keeps a copy of the last successfully saved score so we can restore it
+  // when the user selects a new file then cancels (hits Remove)
+  const [savedScoreData, setSavedScoreData] = useState(null);
+  const [savedMetadataData, setSavedMetadataData] = useState(null);
+
   // delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting]           = useState(false);
@@ -112,8 +117,10 @@ export default function Resume() {
         // pass full parsed_resume so ResumeMetadata has both entities + sections
         if (parsed?.entities) {
           setMetadataData(parsed);
+          setSavedMetadataData(parsed);
         } else {
           setMetadataData(null);
+          setSavedMetadataData(null);
         }
 
         // Detect stale score: scorer version is not ats_v3
@@ -136,7 +143,10 @@ export default function Resume() {
           }
         } else {
           // Score is current — use as-is
-          if (score?.final_score !== undefined) setScoreData(score);
+          if (score?.final_score !== undefined) {
+            setScoreData(score);
+            setSavedScoreData(score);
+          }
         }
       } catch (err) {
         console.error("Failed to load resume:", err);
@@ -153,12 +163,23 @@ export default function Resume() {
   // ----------------------------
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
+    if (!file) return; // user cancelled the picker — do nothing
+
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.type === "application/octet-stream" || // some browsers/OS send this for PDFs
+      file.name.toLowerCase().endsWith(".pdf");   // fallback: trust the extension
+
+    if (isPdf) {
       setUploadedFile(file);
-      // Clear score so ATSScore shows the Calculate button for the new file
+      // Clear score and metadata so ATS + Key Insights reset for the new file
       setScoreData(null);
+      setMetadataData(null);
+      // Reset the input value so the same file can be re-selected after removal
+      e.target.value = "";
     } else {
       alert("Please upload a PDF file");
+      e.target.value = "";
     }
   };
 
@@ -184,11 +205,15 @@ export default function Resume() {
 
       // score directly matches ATSScore.jsx expectation
       // only set score if pipeline actually returned a real result
-      setScoreData(payload.score?.final_score !== undefined ? payload.score : null);
+      const newScore = payload.score?.final_score !== undefined ? payload.score : null;
+      setScoreData(newScore);
+      if (newScore) setSavedScoreData(newScore);
 
       // pass full parsed_resume so ResumeMetadata has both entities + sections
       const parsed = payload.parsed_resume || {};
-      setMetadataData(parsed?.entities ? parsed : null);
+      const newMeta = parsed?.entities ? parsed : null;
+      setMetadataData(newMeta);
+      setSavedMetadataData(newMeta);
 
       // keep uploadedFile OR clear it - your choice
       // setUploadedFile(null);
@@ -202,8 +227,9 @@ export default function Resume() {
 
   const handleRemoveFile = () => {
     setUploadedFile(null);
-    // restore score visibility since we're back to the saved state
-    // (score was cleared on file select, restore from metadataData if needed)
+    // Restore saved score + metadata — user cancelled, go back to stored state
+    if (savedScoreData) setScoreData(savedScoreData);
+    if (savedMetadataData) setMetadataData(savedMetadataData);
   };
 
   // opens the modal
@@ -216,7 +242,9 @@ export default function Resume() {
       await deleteResume();
       setResumeMeta(null);
       setScoreData(null);
+      setSavedScoreData(null);
       setMetadataData(null);
+      setSavedMetadataData(null);
       setUploadedFile(null);
       setShowDeleteModal(false);
     } catch (err) {

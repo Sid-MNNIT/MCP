@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional
 
 
@@ -76,8 +77,11 @@ class ATSScorer:
     # Public API — identical signature, identical return shape
     # -----------------------------------------------------------------------
     def score(self, resume: Dict, jd: Optional[Dict] = None) -> Dict:
-        e = resume.get("entities", {}) or {}
+        e = dict(resume.get("entities", {}) or {})  # shallow copy so we can inject _proj_text
         s = resume.get("sections", {}) or {}
+
+        # Inject project text so _roles can use it for student activity detection
+        e["_proj_text"] = s.get("projects", "") or ""
 
         profile = self._detect_profile(e, s)
         w       = self.WEIGHTS[profile]
@@ -109,6 +113,15 @@ class ATSScorer:
         has_projects  = bool(s.get("projects",  "").strip())
         seniority     = e.get("seniority", [])
 
+        # --- Primary override: entity extractor detected student signals ---
+        # is_student=True means the resume contains degree keywords + student
+        # phrases (GPA, semester, university, pursuing, year of study, etc.)
+        # This fires BEFORE month-counting so students with internships are
+        # never mis-classified as early_career.
+        if e.get("is_student") and total_months < 24:
+            return PROFILE_STUDENT
+
+        # --- Legacy checks (kept as safety net) ---
         # Student: very low experience + education present + projects as primary
         if total_months < 12 and has_education and has_projects:
             return PROFILE_STUDENT
@@ -140,16 +153,32 @@ class ATSScorer:
         if jd and jd.get("skills"):
             ratio = len(skills & set(jd["skills"])) / max(len(jd["skills"]), 1)
             return int(max_w * min(ratio, 1.0))
-        # 16+ skills = full marks for any profile
-        return min(max_w, int(len(skills) * (max_w / 16)))
+        # Full marks at 12+ skills (was 16 — too hard for students with focused stacks)
+        # Score scales linearly up to 12, capped at max_w
+        return min(max_w, int(len(skills) * (max_w / 12)))
+
+    # Keywords in project bullets that signal active developer role for students
+    _PROJECT_ROLE_RE = re.compile(
+        r"\b(building|built|developing|developed|designing|designed|"
+        r"implementing|implemented|integrating|integrated|creating|created|"
+        r"architecting|architected|deploying|deployed|engineering|engineered)"
+        r"\b",
+        re.IGNORECASE,
+    )
 
     def _roles(self, e: Dict, jd: Optional[Dict], w: Dict, profile: str) -> int:
         roles = set(e.get("normalized_roles", []))
-        if not roles:
-            return 0
-
         max_w    = w["roles"]
         seniority = e.get("seniority", [])
+
+        if not roles:
+            # For students with no formal role titles, check if project section
+            # shows active developer work — award up to 60% of role weight
+            if profile == PROFILE_STUDENT:
+                proj_text = e.get("_proj_text", "")  # injected by score() below
+                if proj_text and self._PROJECT_ROLE_RE.search(proj_text):
+                    return int(max_w * 0.6)
+            return 0
 
         # JD mismatch penalty — same for all profiles
         if jd and jd.get("roles") and not (roles & set(jd["roles"])):
@@ -179,12 +208,27 @@ class ATSScorer:
                 return min(max_w, frac_score)
         return 0
 
+    # Quantified impact markers in bullets (numbers/metrics signal stronger work)
+    _QUANT_RE = re.compile(
+        r"("
+        r"\d+\s*%|"                                                          # percentages: 50%
+        r"\d+\+\s*(problems?|questions?|users?|requests?|endpoints?|modules?|features?|pages?|clients?|contributions?)|"  # 380+ problems
+        r"\d+\+?\s*(users?|requests?|api|endpoints?|modules?|features?|pages?|clients?)|"  # numbers with units
+        r"\d+x\b|"                                                           # 3x faster
+        r"\d+\s*(ms|seconds?|hrs?|hours?)"                                   # time metrics
+        r")",
+        re.IGNORECASE,
+    )
+
     def _structure(self, s: Dict, profile: str, w: Dict) -> int:
         """
-        Professional: reward experience + skills + projects (original)
-        Student/Early: reward education + skills + projects
-          - education section present  → extra credit
-          - achievements/certifications → bonus
+        Professional: reward experience + skills + projects
+        Student/Early: richness-based scoring
+          - section presence (base)
+          - project depth: number of projects + bullet count
+          - education quality: has GPA/CGPA?
+          - quantified impact in bullets
+          - achievements + certifications bonus
         """
         max_w = w["structure"]
 
@@ -198,33 +242,63 @@ class ATSScorer:
             if s.get("projects", "").strip(): return int(max_w * 0.4)
             return int(max_w * 0.2) if present else 0
 
-        # Student / Early career scoring
-        score = 0
-        # Core sections — each worth a portion
+        # ---------------------------------------------------------------
+        # Student / Early career: richness-based
+        # ---------------------------------------------------------------
+        score = 0.0
+
+        # 1. Section presence (base) — same weights as before but scaled to 0.70 of max
         section_weights = {
-            "skills":          0.30,
-            "projects":        0.30,
-            "education":       0.25,
-            "experience":      0.10,   # nice-to-have for students
-            "achievements":    0.05,   # hackathons, awards, scholarships
+            "skills":       0.25,
+            "projects":     0.25,
+            "education":    0.20,
+            "experience":   0.05,
+            "achievements": 0.05,
         }
         for section, weight in section_weights.items():
             if s.get(section, "").strip():
                 score += max_w * weight
 
-        # Bonus: certifications or volunteer show initiative
+        # 2. Project depth bonus (up to 10% of max_w)
+        proj_text = s.get("projects", "") or ""
+        if proj_text.strip():
+            # count non-empty lines as a proxy for bullet richness
+            proj_lines = [l for l in proj_text.split("\n") if l.strip()]
+            proj_line_count = len(proj_lines)
+            # 5+ lines = full depth bonus, scale linearly below that
+            depth_ratio = min(proj_line_count / 5.0, 1.0)
+            score += max_w * 0.10 * depth_ratio
+
+        # 3. Education quality bonus (up to 5% of max_w)
+        # Covers CGPA, CPI (MNNIT), GPA, SGPA, percentage — all common formats
+        edu_text = s.get("education", "") or ""
+        if re.search(r"(cgpa|cpi|gpa|sgpa|percentage)\s*[:/]?\s*[\d.]+", edu_text, re.IGNORECASE):
+            score += max_w * 0.05
+
+        # 4. Quantified impact bonus (up to 5% of max_w)
+        # Scan projects + experience + achievements for numbers/metrics
+        combined_text = proj_text + "\n" + (s.get("experience", "") or "") + "\n" + (s.get("achievements", "") or "")
+        if self._QUANT_RE.search(combined_text):
+            score += max_w * 0.05
+
+        # 5. Certifications or volunteer show initiative
         bonus_sections = ["certifications", "volunteer"]
         if any(s.get(sec, "").strip() for sec in bonus_sections):
-            score = min(max_w, score + max_w * 0.05)
+            score += max_w * 0.05
 
-        return int(score)
+        return int(min(max_w, score))
 
     def _companies(self, e: Dict, w: Dict, profile: str) -> int:
         companies = e.get("companies", [])
-        seniority = e.get("seniority", [])
         max_w     = w["companies"]
 
         if not companies:
+            if profile == PROFILE_STUDENT:
+                # No company but active projects = partial credit (30%)
+                # Shows initiative without formal work experience
+                proj_text = e.get("_proj_text", "")
+                if proj_text and proj_text.strip():
+                    return int(max_w * 0.30)
             return 0
 
         if profile == PROFILE_STUDENT:
@@ -261,6 +335,15 @@ class ATSScorer:
             # No company flag only if they have zero internships AND no projects
             if not e.get("companies") and not has_proj:
                 flags.append("no_experience_signal")
+            # Flag if skill count is low — students should list technologies prominently
+            if len(e.get("skills", [])) < 6:
+                flags.append("low_skill_count")
+            # Flag if no quantified impact found in projects, experience, or achievements
+            proj_text  = s.get("projects", "") or ""
+            exp_text   = s.get("experience", "") or ""
+            achiev_text = s.get("achievements", "") or ""
+            if has_proj and not self._QUANT_RE.search(proj_text + "\n" + exp_text + "\n" + achiev_text):
+                flags.append("no_quantified_impact")
 
         elif profile == PROFILE_EARLY_CAREER:
             if not has_exp and not has_proj:

@@ -2,6 +2,59 @@ import re
 from functools import lru_cache
 from datetime import datetime
 
+# ---------------------------------------------------------------------------
+# Student signal detection
+# ---------------------------------------------------------------------------
+
+# Degree keywords that indicate an ongoing/recent undergraduate or postgraduate
+STUDENT_DEGREE_RE = re.compile(
+    r"\b(b\.?tech|b\.?e\.?|b\.?sc|b\.?s\.?|bca|bba|b\.?com|b\.?a\.?|"
+    r"m\.?tech|m\.?e\.?|m\.?sc|m\.?s\.?|mca|mba|"
+    r"bachelor|master|undergraduate|postgraduate|"
+    r"engineering student|computer science student|"
+    r"pursuing|currently enrolled|enrolled in)\b",
+    re.IGNORECASE,
+)
+
+# Phrases that explicitly signal a current student
+STUDENT_SIGNAL_RE = re.compile(
+    r"\b("
+    r"1st year|2nd year|3rd year|4th year|"
+    r"first year|second year|third year|fourth year|"
+    r"freshman|sophomore|senior year|"
+    r"expected graduation|expected grad|graduating in|"
+    r"currently pursuing|currently studying|"
+    r"semester|cgpa|gpa|sgpa|"
+    r"university|college|institute of technology|iit|nit|bits|"
+    r"school of|faculty of"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_is_student(sections: dict) -> bool:
+    """Return True if the resume belongs to a current student, universally."""
+    edu_text  = sections.get("education", "") or ""
+    proj_text = sections.get("projects", "") or ""
+    exp_text  = sections.get("experience", "") or ""
+    full_text = edu_text + "\n" + proj_text + "\n" + exp_text
+
+    has_degree_keyword    = bool(STUDENT_DEGREE_RE.search(full_text))
+    has_student_signal    = bool(STUDENT_SIGNAL_RE.search(full_text))
+    has_education_section = bool(edu_text.strip())
+
+    # Strong: degree keyword + at least one student phrase
+    if has_degree_keyword and has_student_signal:
+        return True
+    # Medium: education section present + student phrase (covers GPA, semester etc.)
+    if has_education_section and has_student_signal:
+        return True
+    # Degree keyword alone inside an education section is enough
+    if has_education_section and has_degree_keyword:
+        return True
+    return False
+
+
 CURRENT_YEAR  = datetime.now().year
 CURRENT_MONTH = datetime.now().month
 
@@ -89,7 +142,12 @@ TECH_RE = re.compile(
     r"docker|kubernetes|k8s|aws|gcp|azure|git|linux|nginx|terraform|ansible|"
     r"tensorflow|pytorch|pandas|numpy|scikit[\-. ]learn|"
     r"rest(?:ful)?|graphql|grpc|kafka|rabbitmq|celery|"
-    r"html5?|css3?|tailwind|bootstrap|sass)\b", re.IGNORECASE
+    r"html5?|css3?|tailwind|bootstrap|sass|"
+    # Modern tools commonly missing from base list
+    r"langchain|openai|groq|spacy|pymupdf|pdfplumber|"
+    r"firebase|supabase|prisma|mongoose|sequelize|"
+    r"jwt|oauth|mcp|rag|llm|nlp|"
+    r"postman|vscode|vercel|netlify)\b", re.IGNORECASE
 )
 
 COMPANY_PATTERNS = [
@@ -160,11 +218,11 @@ def extract_entities(sections):
     combined  = exp_text + "\n" + proj_text
     exp_lines = exp_text.split("\n")
 
-    # inline tech skills from bullets
+    # inline tech skills from bullets — scan both experience AND projects
     for m in TECH_RE.finditer(combined):
         skills.add(m.group().strip())
 
-    # roles + companies
+    # roles + companies — experience section only
     role_lines = []
     for line in exp_lines:
         m = ROLE_REGEX.search(line)
@@ -193,11 +251,17 @@ def extract_entities(sections):
             if ent.label_ == "ORG" and "\n" not in ent.text and len(ent.text) > 2:
                 companies.add(ent.text.strip())
 
+    # Dates for metadata — scan combined (experience + projects)
     for y in YEAR_RE.findall(combined):
         dates.add(y)
 
+    # Work duration — EXPERIENCE SECTION ONLY.
+    # Project dates (e.g. "Dec 2025 – Present") must NOT inflate total_months
+    # or a student with side-projects looks like a 1yr+ professional.
+    exp_lower = exp_text.lower()
+
     # month ranges: "Jan 2022 – Dec 2023"
-    for g in MONTH_RANGE_RE.findall(combined.lower()):
+    for g in MONTH_RANGE_RE.findall(exp_lower):
         sy, sm = int(g[1]), MONTH_MAP[g[0]]
         if g[2] == "present":
             ey, em = CURRENT_YEAR, CURRENT_MONTH
@@ -207,7 +271,7 @@ def extract_entities(sections):
         _walk_months(sy, sm, ey, em, worked_months)
 
     # year-only ranges: "2022 – 2024"
-    for g in YEAR_RANGE_RE.findall(combined):
+    for g in YEAR_RANGE_RE.findall(exp_text):
         sy = int(g[0])
         ey = CURRENT_YEAR if g[1].lower() == "present" else int(g[1])
         for y in range(sy, min(ey + 1, CURRENT_YEAR + 1)):
@@ -218,6 +282,7 @@ def extract_entities(sections):
 
     total   = len(worked_months)
     return {
+        "is_student":        _detect_is_student(sections),
         "roles":             sorted(roles),
         "normalized_roles":  sorted(norm_roles),
         "seniority":         sorted(seniority),

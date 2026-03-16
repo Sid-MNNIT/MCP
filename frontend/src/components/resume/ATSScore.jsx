@@ -47,6 +47,9 @@ const FLAG_LABELS = {
   low_experience:                  "Limited work experience detected — add internships or projects",
   intern_only_profile:             "Only intern-level roles found — consider adding projects or freelance work",
   no_company_signal:               "No company names detected — make sure employers are clearly listed",
+  // student-specific
+  low_skill_count:                 "List more technical skills — aim for at least 8-10 technologies",
+  no_quantified_impact:            "Add numbers to your project bullets (e.g. '3 modules', '50% faster') to show impact",
   // all profiles
   missing_skills:                  "Add a Skills section listing your technical & soft skills",
 };

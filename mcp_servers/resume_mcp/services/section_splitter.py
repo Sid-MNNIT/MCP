@@ -84,7 +84,7 @@ def _groq_split(text):
             f"- Do NOT include section headings in the values\n"
             f"- Preserve all content exactly as written\n"
             f"- Use empty string for missing sections\n\n"
-            f"RESUME:\n\"\"\"\n{text[:8000]}\n\"\"\""
+            f"RESUME:\n\"\"\"\n{text[:12000]}\n\"\"\""
         )
 
         resp = client._client.chat.completions.create(
@@ -94,7 +94,7 @@ def _groq_split(text):
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,
-            max_tokens=2500,
+            max_tokens=4000,
         )
         content = resp.choices[0].message.content.strip()
         if content.startswith("```"):

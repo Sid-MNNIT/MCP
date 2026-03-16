@@ -587,6 +587,60 @@
   border: 1px solid var(--border-color);
 }
 
+.education-entry {
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.education-institute {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.education-degree {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  line-height: 1.3;
+}
+
+.education-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.education-year {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.education-score {
+  font-size: 11px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.project-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.project-detail {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 0 10px 4px 26px;
+}
+
 /* ========================================= */
 /* METADATA SECTION */
 /* ========================================= */

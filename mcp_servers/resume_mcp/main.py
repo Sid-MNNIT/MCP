@@ -40,7 +40,7 @@ def parse_resume(file_b64: str):
     print("[MCP SERVER] base64 decoded successfully", flush=True, file=sys.stderr)
 
     if not pdf_bytes.startswith(b"%PDF"):
-        return {"status": "error", "error": "NOT_A_PDF", "message": "Input is not a valid PDF"}
+        return {"status": "error", "error": "NOT_A_PDF", "message": "Input is not a valid PDF. Please upload a text-based PDF."}
 
     print("[MCP SERVER] PDF header valid, extracting text...", flush=True, file=sys.stderr)
 
@@ -50,7 +50,7 @@ def parse_resume(file_b64: str):
         err = str(e)
         if "SCANNED_PDF" in err:
             return {"status": "error", "error": "SCANNED_PDF",
-                    "message": "Scanned/image PDF — no extractable text. Please upload a text-based PDF or DOCX."}
+                    "message": "Scanned/image PDF — no extractable text. Please upload a text-based PDF."}
         return {"status": "error", "error": "PDF_EXTRACTION_FAILED", "message": err}
     except Exception as e:
         return {"status": "error", "error": "PDF_EXTRACTION_FAILED", "message": str(e)}

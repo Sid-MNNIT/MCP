@@ -1,6 +1,29 @@
 import io
 
 
+def extract_text_from_docx(docx_bytes: bytes) -> str:
+    """
+    Extract plain text from a .docx file (bytes).
+    Preserves paragraph order. Raises RuntimeError on failure.
+    """
+    try:
+        from docx import Document
+        doc = Document(io.BytesIO(docx_bytes))
+        lines = [para.text.strip() for para in doc.paragraphs if para.text.strip()]
+        if not lines:
+            raise RuntimeError("EMPTY_DOCX: No readable text found in the document.")
+        return "\n".join(lines)
+    except ImportError:
+        raise RuntimeError(
+            "MISSING_DEPENDENCY: python-docx is not installed. "
+            "Run: pip install python-docx"
+        )
+    except RuntimeError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"DOCX_EXTRACTION_FAILED: {e}")
+
+
 def _fitz(pdf_bytes):
     """Multi-column aware extraction using pymupdf blocks."""
     import fitz

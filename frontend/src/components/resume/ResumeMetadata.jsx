@@ -56,17 +56,203 @@ const StatBox = ({ icon, value, label }) => (
 
 // ─── Count words/lines in a section string (rough project count proxy) ────────
 const countProjects = (text = "") => {
-  // count non-empty lines that look like project headings (start with capital or digit)
-  const lines = text.split("\n").filter((l) => /^[A-Z0-9]/.test(l.trim()));
-  return lines.length || (text.trim() ? 1 : 0);
+  return parseProjects(text).length || (text.trim() ? 1 : 0);
+};
+
+// ─── Parse projects into structured entries ──────────────────────────────────
+// A "project heading" line is one that:
+//   - Is not a pure date  (e.g. "December 2025- Present")
+//   - Is not a pure URL   (e.g. "github.com/..." or "GitHub")
+//   - Is not a tech stack line (short comma-separated tech list)
+//   - Is not a bullet detail line (starts with - or bullet)
+const DATE_LINE_RE   = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december|present|\d{4})/i;
+const URL_LINE_RE    = /^(https?:\/\/|www\.|github\.com|gitlab\.com|linkedin\.com)/i;
+const GITHUB_RE      = /^github$/i;
+// 2+ comma-separated short tokens = tech stack (catches "LLM, FastMCP" etc.)
+const TECH_STACK_RE  = /^([A-Za-z0-9.#+\- ]{1,30}(,\s*[A-Za-z0-9.#+\- ]{1,30}){1,})$/;
+// Both ASCII dash bullet AND em-dash (–) used in PDF bullet points
+const BULLET_LINE_RE = /^[-*–—]/;
+// Sentence starters — lines that are clearly descriptions, not project titles
+const DESCRIPTION_RE = /^(a |an |the |this |with |using |for |built |developed |developing |creating |designed |designing |integrated |integrating |organized |organiz|building |implement|support|enabling |enabling|tools |tools:|technologies|framework)/i;
+
+// Strip trailing " | GitHub" or "| GitHub" from project title lines
+const stripGithubSuffix = (s) => s.replace(/\s*\|?\s*github\s*$/i, "").trim();
+
+const isProjectHeading = (line) => {
+  // Strip leading bullet/dash that normalize_text adds from PDF bullet chars (•→-)
+  const stripped = stripGithubSuffix(line.replace(/^[-*–—]\s*/, ""));
+  if (!stripped || stripped.length < 3)        return false;
+  if (DATE_LINE_RE.test(stripped))             return false;
+  if (URL_LINE_RE.test(stripped))              return false;
+  if (GITHUB_RE.test(stripped.trim()))         return false;
+  if (TECH_STACK_RE.test(stripped))            return false;
+  if (BULLET_LINE_RE.test(stripped))           return false;  // still a bullet after strip = nested bullet
+  if (DESCRIPTION_RE.test(stripped))           return false;  // sentence description, not a title
+  if (stripped.length > 80)                    return false;  // generous limit for descriptive titles
+  if (stripped.includes(" via "))              return false;  // "connecting them to backend via REST API"
+  if (stripped.includes(" using ") && stripped.length > 40) return false;  // long "using" sentences
+  if (!/^[A-Z0-9"'(\[]/.test(stripped))        return false;
+  return true;
+};
+
+// Strip leading bullet from project name for display, also strip trailing | GitHub
+const stripBullet = (line) => stripGithubSuffix(line.replace(/^[-*–—]\s*/, ""));
+
+const parseProjects = (text = "") => {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const projects = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (isProjectHeading(line)) {
+      if (current) projects.push(current);
+      current = { name: stripBullet(line), details: [] };
+    } else if (current) {
+      if (!GITHUB_RE.test(line) && !URL_LINE_RE.test(line)) {
+        current.details.push(line);
+      }
+    }
+  }
+  if (current) projects.push(current);
+  return projects;
+};
+
+// ─── Parse education into structured entries ─────────────────────────────────
+const YEAR_RE_EDU = /^\d{4}$|\b(20\d{2})\b/;
+// CPI is used in some institutes (e.g. MNNIT), added alongside CGPA/GPA
+const SCORE_RE    = /cgpa|cpi|gpa|sgpa|%|percentage|score/i;
+const DEGREE_RE   = /b\.?tech|b\.?e|b\.?sc|m\.?tech|m\.?sc|mca|bca|bachelor|master|diploma|engineering|science/i;
+
+const parseEducation = (text = "") => {
+  // Your PDF uses two-column layout so lines come out as:
+  //   "-INSTITUTE NAME, CITY   2028"
+  //   "DEGREE BOARD   CGPA/Percentage: 9.57"
+  // Pre-process each raw line to split these compound patterns apart.
+  const rawLines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = [];
+
+  for (const line of rawLines) {
+    const clean = line.replace(/^[-*]\s*/, ""); // strip leading bullet
+
+    // Pattern 1a: "INSTITUTE NAME   2024 – 2028" — institute + year range on same line
+    // Extract the graduation (end) year from the range
+    const instYearRangeMatch = clean.match(/^(.+?)\s+(20\d{2}|19\d{2})\s*[–\-–]\s*(20\d{2}|19\d{2})\s*$/);
+    if (instYearRangeMatch && /university|college|institute|school|iit|nit|bits|academy/i.test(instYearRangeMatch[1])) {
+      lines.push(instYearRangeMatch[1].trim());
+      lines.push(instYearRangeMatch[3]); // use end year (graduation year)
+      continue;
+    }
+
+    // Pattern 1b: "INSTITUTE NAME   2028" — institute + single year on same line
+    const instYearMatch = clean.match(/^(.+?)\s+(20\d{2}|19\d{2})\s*$/);
+    if (instYearMatch && /university|college|institute|school|iit|nit|bits|academy/i.test(instYearMatch[1])) {
+      lines.push(instYearMatch[1].trim());
+      lines.push(instYearMatch[2]);
+      continue;
+    }
+
+    // Pattern 2a: "DEGREE | CPI: 9.29" or "DEGREE | CGPA: 9.57" — pipe-separated degree + score
+    const pipeSplit = clean.match(/^(.+?)\s*\|\s*(cgpa|cpi|gpa|sgpa|percentage|score)[:/\s]+([\d.]+)\s*(.*)$/i);
+    if (pipeSplit) {
+      if (pipeSplit[1].trim()) lines.push(pipeSplit[1].trim());
+      lines.push(`${pipeSplit[2]}: ${pipeSplit[3]}`);
+      continue;
+    }
+
+    // Pattern 2b: "DEGREE   CGPA/Percentage: 9.57" — degree + score on same line
+    const degreeScoreMatch = clean.match(/^(.+?)\s+(cgpa|cpi|gpa|sgpa|percentage|score)[/:]?\s*([\d.]+)\s*$/i);
+    if (degreeScoreMatch) {
+      if (degreeScoreMatch[1].trim()) lines.push(degreeScoreMatch[1].trim());
+      lines.push(`${degreeScoreMatch[2]}: ${degreeScoreMatch[3]}`);
+      continue;
+    }
+
+    // Pattern 3: concatenated "...2028CGPA/Percentage: 9.57" (no space between year and CGPA)
+    const concatMatch = clean.match(/^(.+?)(\d{4})(cgpa|gpa|sgpa|percentage|score)[:/]?\s*([\d.]+)\s*$/i);
+    if (concatMatch) {
+      if (concatMatch[1].trim()) lines.push(concatMatch[1].trim());
+      lines.push(concatMatch[2]);
+      lines.push(`${concatMatch[3]}: ${concatMatch[4]}`);
+      continue;
+    }
+
+    lines.push(clean);
+  }
+
+  const entries = [];
+  let current = null;
+
+  for (const line of lines) {
+    const isInstitute = /university|college|institute|school|iit|nit|bits|academy/i.test(line);
+    const isDegree    = DEGREE_RE.test(line);
+    const isYear      = /^(20\d{2}|19\d{2})$/.test(line);
+    const isScore     = SCORE_RE.test(line);
+
+    if (isInstitute) {
+      if (current) entries.push(current);
+      current = { institute: line, degree: "", year: "", score: "" };
+    } else if (current) {
+      if (isDegree && !current.degree)    current.degree = line;
+      else if (isYear && !current.year)   current.year   = line;
+      else if (isScore && !current.score) {
+        // Preserve label + number: "CGPA: 9.57", "CPI: 9.29", "95.4%"
+        // Normalise: "cgpa: 9.57" → "CGPA: 9.57"
+        const labelMatch = line.match(/^(cgpa|cpi|gpa|sgpa|percentage)\s*[:/]?\s*([\d.]+)/i);
+        if (labelMatch) {
+          current.score = `${labelMatch[1].toUpperCase()}: ${labelMatch[2]}`;
+        } else {
+          const numMatch = line.match(/([\d.]+(?:\s*%)?)\s*$/);
+          current.score = numMatch ? numMatch[1] : line;
+        }
+      }
+    } else {
+      if (line.length > 5) {
+        current = { institute: line, degree: "", year: "", score: "" };
+      }
+    }
+  }
+  if (current) entries.push(current);
+  return entries;
+};
+
+// ─── Parse achievements into clean list ──────────────────────────────────────
+const parseAchievements = (text = "") => {
+  return text
+    .split("\n")
+    .map((l) => {
+      let s = l.trim().replace(/^[-*–—•]\s*/, ""); // strip all bullet variants
+      // Some PDFs concatenate a bold label directly with content e.g.
+      // "Problem SolvingSolved 380+ problems..."
+      // "Competitive ProgrammingAchieved a maximum..."
+      // Detect: starts with a capitalised run of words with no space, then a capital letter starts content
+      // Split on the boundary between the label and the sentence
+      s = s.replace(/^([A-Z][a-z]+(?:[A-Z][a-z]+)+)([A-Z][a-z])/, "$2");
+      return s;
+    })
+    .filter((l) => {
+      if (l.length <= 3) return false;
+      // filter out section headings
+      if (/^(positions?|of|responsibility|declaration|references)/i.test(l)) return false;
+      // filter out pure date lines like "July 2025- Present"
+      if (DATE_LINE_RE.test(l)) return false;
+      // filter out short role/title-only lines (<=3 words, no achievement keywords)
+      if (l.split(" ").length <= 3 && !/solved|secured|position|pupil|rank|winner|award|rating|achieved/i.test(l)) return false;
+      // filter out programme/club names
+      if (/^(student mentorship|mentorship program|gnosis|quiz club|program,|club$|committee$|society$)/i.test(l)) return false;
+      // filter out pure responsibility/duty sentences (action verbs for ongoing work)
+      if (/^(organized|conducting|helping|managing|leading|coordinating|working|supporting|enabling|integrated|designing|contributed|conceptualized)/i.test(l)) return false;
+      return true;
+    })
+    .slice(0, 5);
 };
 
 // ─── Profile detection (mirrors ats_scorer.py logic, client-side) ────────────
 const detectProfile = (entities, sections) => {
-  const totalMonths   = entities.total_months ?? 0;
-  const hasEducation  = !!(sections?.education?.trim());
-  const hasProjects   = !!(sections?.projects?.trim());
-  const seniority     = entities.seniority ?? [];
+  const totalMonths  = entities.total_months ?? 0;
+  const hasEducation = !!(sections?.education?.trim());
+  const hasProjects  = !!(sections?.projects?.trim());
+  const seniority    = entities.seniority ?? [];
+  if (entities.is_student && totalMonths < 24) return "student";
   if (totalMonths < 12 && hasEducation && hasProjects) return "student";
   if (totalMonths < 6  && (seniority.includes("intern") || seniority.includes("trainee")))
     return "student";
@@ -110,14 +296,14 @@ const ResumeMetadata = ({ metadataData }) => {
       ? `${expYears}yr${expMonths > 0 ? ` ${expMonths}mo` : ""}`.trim()
       : `${expMonths}mo`;
 
-  const projectCount  = countProjects(sections.projects);
-  const hasEducation  = !!(sections.education?.trim());
-  const hasProjects   = !!(sections.projects?.trim());
-  const hasAchiev     = !!(sections.achievements?.trim());
-  const hasCerts      = !!(sections.certifications?.trim());
+  const projectCount = countProjects(sections.projects);
+  const hasEducation = !!(sections.education?.trim());
+  const hasProjects  = !!(sections.projects?.trim());
+  const hasAchiev    = !!(sections.achievements?.trim());
+  const hasCerts     = !!(sections.certifications?.trim());
 
-  const isStudent     = profile === "student";
-  const isEarly       = profile === "early_career";
+  const isStudent = profile === "student";
+  const isEarly   = profile === "early_career";
 
   return (
     <div className="resume-column">
@@ -126,26 +312,16 @@ const ResumeMetadata = ({ metadataData }) => {
 
         <div className="metadata-content">
 
-          {/* ── STAT BOXES ── */}
+          {/* STAT BOXES */}
           <div className="metadata-stats">
             {isStudent ? (
-              // Student: Projects | Education | Skills | Roles
               <>
-                <StatBox
-                  icon={<ProjectIcon />}
-                  value={hasProjects ? projectCount || "✓" : "0"}
-                  label="Projects"
-                />
-                <StatBox
-                  icon={<EducationIcon />}
-                  value={hasEducation ? "✓" : "–"}
-                  label="Education"
-                />
-                <StatBox icon={<StarIcon />}    value={skills.length}    label="Skills" />
-                <StatBox icon={<RoleIcon />}    value={roles.length}     label="Roles" />
+                <StatBox icon={<ProjectIcon />}  value={hasProjects ? projectCount || "✓" : "0"} label="Projects" />
+                <StatBox icon={<EducationIcon />} value={hasEducation ? "✓" : "–"} label="Education" />
+                <StatBox icon={<StarIcon />}      value={skills.length}  label="Skills" />
+                <StatBox icon={<RoleIcon />}      value={roles.length}   label="Roles" />
               </>
             ) : isEarly ? (
-              // Early career: Experience | Companies | Skills | Roles
               <>
                 <StatBox icon={<CalendarIcon />} value={expDisplay}       label="Experience" />
                 <StatBox icon={<CompanyIcon />}  value={companies.length} label="Companies" />
@@ -153,7 +329,6 @@ const ResumeMetadata = ({ metadataData }) => {
                 <StatBox icon={<RoleIcon />}     value={roles.length}     label="Roles" />
               </>
             ) : (
-              // Professional: Experience | Companies | Skills | Roles
               <>
                 <StatBox icon={<CalendarIcon />} value={expDisplay}       label="Experience" />
                 <StatBox icon={<CompanyIcon />}  value={companies.length} label="Companies" />
@@ -163,7 +338,7 @@ const ResumeMetadata = ({ metadataData }) => {
             )}
           </div>
 
-          {/* ── TOP SKILLS (all profiles) ── */}
+          {/* TOP SKILLS */}
           {skills.length > 0 && (
             <div className="metadata-section">
               <h4>Top Skills</h4>
@@ -178,66 +353,57 @@ const ResumeMetadata = ({ metadataData }) => {
             </div>
           )}
 
-          {/* ── PROJECTS (student / early career primary signal) ── */}
-          {(isStudent || isEarly) && hasProjects && (
-            <div className="metadata-section">
-              <h4>Projects</h4>
-              <div className="projects-preview">
-                {sections.projects
-                  .split("\n")
-                  .map((l) => l.trim())
-                  .filter((l) => l && /^[A-Z0-9'"\[{]/.test(l))
-                  .map((l) => {
-                    // strip leading JSON artifacts like {'ProjectName': or [' and trailing ': '
-                    const cleaned = l
-                      .replace(/^[{\['"`]+/, "")
-                      .replace(/[}\]'"`]+$/, "")
-                      .replace(/^'?([^':]+)'?:\s*.*$/, "$1") // key: value → just key
-                      .replace(/^\s*['"]{1}/, "")
-                      .trim();
-                    return cleaned;
-                  })
-                  .filter((l) => l.length > 1)
-                  .slice(0, 5)
-                  .map((name, i) => (
-                    <div key={i} className="project-line">
-                      <span className="project-bullet" />
-                      <span className="project-name">{name}</span>
+          {/* PROJECTS */}
+          {(isStudent || isEarly) && hasProjects && (() => {
+            const projects = parseProjects(sections.projects);
+            if (!projects.length) return null;
+            return (
+              <div className="metadata-section">
+                <h4>Projects ({projects.length})</h4>
+                <div className="projects-preview">
+                  {projects.slice(0, 4).map((proj, i) => (
+                    <div key={i} className="project-entry">
+                      <div className="project-line">
+                        <span className="project-bullet" />
+                        <span className="project-name">{proj.name}</span>
+                      </div>
+                      {proj.details
+                        .filter((d) => DATE_LINE_RE.test(d))
+                        .slice(0, 1)
+                        .map((d, j) => (
+                          <div key={j} className="project-detail">{d}</div>
+                        ))}
                     </div>
                   ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
-          {/* ── EDUCATION (student primary, others if present) ── */}
-          {hasEducation && (
-            <div className="metadata-section">
-              <h4>Education</h4>
-              <div className="education-preview">
-                {sections.education
-                  .split("\n")
-                  .map((l) => l.trim())
-                  .filter((l) => l)
-                  .map((l) => {
-                    // extract institution name — usually the longest capitalized token
-                    // strip JSON artifacts
-                    const cleaned = l
-                      .replace(/^[{\['"`]+/, "")
-                      .replace(/[}\]'"`]+$/, "")
-                      .replace(/^'?([^':]+)'?:\s*.*$/, "$1")
-                      .trim();
-                    return cleaned;
-                  })
-                  .filter((l) => l.length > 2)
-                  .slice(0, 3)
-                  .map((line, i) => (
-                    <div key={i} className="education-line">{line}</div>
+          {/* EDUCATION */}
+          {hasEducation && (() => {
+            const eduEntries = parseEducation(sections.education);
+            if (!eduEntries.length) return null;
+            return (
+              <div className="metadata-section">
+                <h4>Education</h4>
+                <div className="education-preview">
+                  {eduEntries.slice(0, 2).map((edu, i) => (
+                    <div key={i} className="education-entry">
+                      <div className="education-institute">{edu.institute}</div>
+                      {edu.degree && <div className="education-degree">{edu.degree}</div>}
+                      <div className="education-meta">
+                        {edu.year  && <span className="education-year">Batch of {edu.year}</span>}
+                        {edu.score && <span className="education-score">{edu.score}</span>}
+                      </div>
+                    </div>
                   ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
-          {/* ── WORK HISTORY (early career + professional) ── */}
+          {/* WORK HISTORY */}
           {!isStudent && companies.length > 0 && (
             <div className="metadata-section">
               <h4>Work History</h4>
@@ -252,7 +418,7 @@ const ResumeMetadata = ({ metadataData }) => {
             </div>
           )}
 
-          {/* ── INTERNSHIPS (student — show companies as internships) ── */}
+          {/* INTERNSHIPS */}
           {isStudent && companies.length > 0 && (
             <div className="metadata-section">
               <h4>Internships</h4>
@@ -267,7 +433,7 @@ const ResumeMetadata = ({ metadataData }) => {
             </div>
           )}
 
-          {/* ── DETECTED ROLES ── */}
+          {/* DETECTED ROLES */}
           {roles.length > 0 && (
             <div className="metadata-section">
               <h4>Detected Roles</h4>
@@ -279,34 +445,26 @@ const ResumeMetadata = ({ metadataData }) => {
             </div>
           )}
 
-          {/* ── ACHIEVEMENTS (student — hackathons, scholarships) ── */}
-          {(isStudent || isEarly) && hasAchiev && (
-            <div className="metadata-section">
-              <h4>Achievements</h4>
-              <div className="projects-preview">
-                {sections.achievements
-                  .split("\n")
-                  .map((l) => l.trim())
-                  .filter((l) => l)
-                  .map((l) =>
-                    l.replace(/^[{\['"`]+/, "")
-                     .replace(/[}\]'"`]+$/, "")
-                     .replace(/^'?([^':]+)'?:\s*.*$/, "$1")
-                     .trim()
-                  )
-                  .filter((l) => l.length > 2)
-                  .slice(0, 3)
-                  .map((line, i) => (
+          {/* ACHIEVEMENTS */}
+          {(isStudent || isEarly) && hasAchiev && (() => {
+            const achievements = parseAchievements(sections.achievements);
+            if (!achievements.length) return null;
+            return (
+              <div className="metadata-section">
+                <h4>Achievements</h4>
+                <div className="projects-preview">
+                  {achievements.map((line, i) => (
                     <div key={i} className="project-line">
                       <span className="project-bullet" />
                       <span className="project-name">{line}</span>
                     </div>
                   ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
-          {/* ── CERTIFICATIONS (student — show initiative) ── */}
+          {/* CERTIFICATIONS */}
           {(isStudent || isEarly) && hasCerts && (
             <div className="metadata-section">
               <h4>Certifications</h4>

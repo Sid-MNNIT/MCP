@@ -1,7 +1,10 @@
 from typing import Dict, Any, Optional
 from client.wrappers.resume_wrapper import parse_resume_pdf, score_resume_ats
 
-SUPPORTED_MIMETYPES = {"application/pdf"}
+SUPPORTED_MIMETYPES = {
+    "application/pdf",
+    "application/octet-stream",  # some browsers send this for .pdf downloads
+}
 SUPPORTED_EXTENSIONS = {".pdf"}
 
 
@@ -9,7 +12,9 @@ def _validate_file(filename: str, mimetype: str) -> Optional[str]:
     """Returns an error message if file type is unsupported, else None."""
     import os
     ext = os.path.splitext(filename)[1].lower()
-    if mimetype not in SUPPORTED_MIMETYPES or ext not in SUPPORTED_EXTENSIONS:
+    # Accept if EITHER the extension OR the mimetype is valid
+    # This handles browsers that send application/octet-stream for PDFs
+    if ext not in SUPPORTED_EXTENSIONS and mimetype not in SUPPORTED_MIMETYPES:
         return (
             f"Unsupported file type: '{filename}' ({mimetype}). "
             f"Only text-based PDF files are supported."

@@ -12,11 +12,19 @@ import {
 
 const router = Router();
 
+const ALLOWED_MIMETYPES = new Set([
+  "application/pdf",
+  "application/octet-stream", // some browsers/OS send this for PDFs
+]);
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== "application/pdf") {
+    const ext = file.originalname?.toLowerCase().split(".").pop();
+    const mimeOk = ALLOWED_MIMETYPES.has(file.mimetype);
+    const extOk  = ext === "pdf";
+    if (!mimeOk && !extOk) {
       return cb(new Error("Only PDF files are allowed"), false);
     }
     cb(null, true);

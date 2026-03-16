@@ -22,7 +22,8 @@ export const uploadAndParseResume = asyncHandler(async (req, res) => {
   const file = req.file;
   if (!file) throw new ApiError(400, "Resume PDF file is required");
 
-  if (file.mimetype !== "application/pdf") {
+  const ext = file.originalname?.toLowerCase().split(".").pop();
+  if (file.mimetype !== "application/pdf" && file.mimetype !== "application/octet-stream" && ext !== "pdf") {
     throw new ApiError(400, "Invalid file type. Only PDF allowed.");
   }
 
