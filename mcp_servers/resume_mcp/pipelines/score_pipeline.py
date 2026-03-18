@@ -14,8 +14,10 @@ class ScorePipeline:
         llm_feedback = []
 
         if self.llm:
-            llm_result   = self.llm.evaluate(parsed_resume, ats_result, job_description)
+            # Pass profile from ATS meta so LLM uses profile-aware instructions
+            profile = ats_result.get("meta", {}).get("profile", "student")
+            llm_result   = self.llm.evaluate(parsed_resume, ats_result, job_description, profile=profile)
             final_score  = max(0, min(100, final_score + llm_result["score_adjustment"]))
-            llm_feedback = llm_result["feedback"]
+            llm_feedback = llm_result["feedback"]  # list of {text, severity} dicts
 
         return {"final_score": final_score, "ats": ats_result, "llm_feedback": llm_feedback}

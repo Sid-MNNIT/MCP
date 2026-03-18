@@ -172,24 +172,66 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               </div>
             )}
 
-            {/* LLM Suggestions */}
-            {scoreData.llm_feedback?.length > 0 && (
-              <div className="feedback-section">
-                <h4>Suggestions</h4>
-                {scoreData.llm_feedback.map((text, i) => (
-                  <div key={i} className="feedback-item feedback-info">
-                    <span className="feedback-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                    </span>
-                    <span className="feedback-text">{typeof text === "string" ? text : text?.text ?? ""}</span>
+            {/* LLM Feedback — three-tier: green / yellow / red */}
+            {scoreData.llm_feedback?.length > 0 && (() => {
+              // Normalise: support both old flat strings and new {text, severity} objects
+              const items = scoreData.llm_feedback.map((f) =>
+                typeof f === "string"
+                  ? { text: f, severity: "yellow" }
+                  : { text: f?.text ?? "", severity: f?.severity ?? "yellow" }
+              ).filter((f) => f.text);
+
+              const greens  = items.filter((f) => f.severity === "green");
+              const yellows = items.filter((f) => f.severity === "yellow");
+              const reds    = items.filter((f) => f.severity === "red");
+
+              const severityConfig = {
+                green:  { className: "feedback-success", icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                )},
+                yellow: { className: "feedback-warning", icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                )},
+                red:    { className: "feedback-error", icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                )},
+              };
+
+              const renderGroup = (list, label, severity) => {
+                if (!list.length) return null;
+                const cfg = severityConfig[severity];
+                return (
+                  <div className="feedback-section" key={severity}>
+                    <h4>{label}</h4>
+                    {list.map((f, i) => (
+                      <div key={i} className={`feedback-item ${cfg.className}`}>
+                        <span className="feedback-icon">{cfg.icon}</span>
+                        <span className="feedback-text">{f.text}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              };
+
+              return (
+                <>
+                  {renderGroup(greens,  "Strengths",    "green")}
+                  {renderGroup(yellows, "Improvements", "yellow")}
+                  {renderGroup(reds,    "Critical",     "red")}
+                </>
+              );
+            })()}
 
           </div>
         )}

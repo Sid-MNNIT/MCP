@@ -1,4 +1,4 @@
-import os, json, re
+import os, json, re, time
 from pathlib import Path
 from typing import Dict, Any
 
@@ -17,12 +17,13 @@ DEFAULT_MODEL = "llama-3.1-8b-instant"
 
 _SYSTEM = (
     "You are a strict JSON generator and ATS resume reviewer. "
-    "Return ONLY valid JSON. No markdown. No explanation. "
-    "Give practical improvement feedback. Do NOT extract skills or recalculate experience."
+    "Return ONLY valid JSON. No markdown. No explanation."
 )
 
+_EMPTY: Dict[str, Any] = {}
 
-def _parse_json(text):
+
+def _parse_json(text: str) -> dict:
     if not text:
         return {}
     text = re.sub(r'^```[a-z]*\n?', '', text.strip()).rstrip('`').strip()
@@ -49,23 +50,34 @@ class GroqClient:
         self._client = Groq(api_key=self.api_key)
 
     def complete(self, prompt: str) -> Dict[str, Any]:
+        """
+        Call Groq and return the parsed JSON dict.
+        Retries up to 3 times on 429 rate-limit errors with backoff.
+        Returns empty dict on failure — caller decides what to do.
+        """
         if not prompt:
-            return {"feedback": [], "score_adjustment": 0}
-        try:
-            resp = self._client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": _SYSTEM},
-                    {"role": "user",   "content": prompt},
-                ],
-                temperature=0.2,
-                max_tokens=800,
-            )
-            parsed = _parse_json(resp.choices[0].message.content)
-            feedback = parsed.get("feedback", [])
-            if not isinstance(feedback, list):
-                feedback = [str(feedback)]
-            adj = max(-10, min(10, int(parsed.get("score_adjustment", 0) or 0)))
-            return {"feedback": feedback, "score_adjustment": adj}
-        except Exception:
-            return {"feedback": ["LLM unavailable, ATS score used as-is"], "score_adjustment": 0}
+            return _EMPTY
+
+        for attempt in range(3):
+            try:
+                resp = self._client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": _SYSTEM},
+                        {"role": "user",   "content": prompt},
+                    ],
+                    temperature=0.2,
+                    max_tokens=400,
+                )
+                return _parse_json(resp.choices[0].message.content)
+
+            except Exception as e:
+                err = str(e)
+                if "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower():
+                    wait = (attempt + 1) * 10   # 10s, 20s, 30s
+                    time.sleep(wait)
+                    continue
+                # Non-rate-limit error — fail immediately
+                break
+
+        return _EMPTY

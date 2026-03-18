@@ -13,7 +13,8 @@ SECTION_ALIASES = {
                        "internship", "relevant experience", "positions held"],
     "projects":       ["projects", "project", "personal projects", "academic projects",
                        "key projects", "project work", "project experience", "portfolio",
-                       "open source", "open-source contributions"],
+                       "open source", "open-source contributions",
+                       "personal project"],
     "skills":         ["skills", "technical skills", "technologies", "tech stack", "tools",
                        "core competencies", "key skills", "areas of expertise", "expertise",
                        "technical expertise", "programming skills", "technical proficiencies",
@@ -28,7 +29,8 @@ SECTION_ALIASES = {
                        "recognition", "prizes", "distinctions", "scholarships"],
     "publications":   ["publications", "papers", "research", "patents"],
     "volunteer":      ["volunteer", "volunteering", "community service",
-                       "extracurricular", "extracurricular activities", "leadership"],
+                       "extracurricular", "extracurricular activities", "leadership",
+                       "positions of responsibility", "position of responsibility"],
     "languages":      ["languages", "language skills", "spoken languages"],
     "interests":      ["interests", "hobbies", "hobbies & interests"],
     "other":          ["other", "other information", "additional information",
@@ -78,13 +80,13 @@ def _groq_split(text):
         client = GroqClient()
 
         prompt = (
-            f"You are a resume parser. Split the resume below into sections.\n\n"
-            f"Return ONLY a valid JSON object with exactly these keys:\n{json.dumps(ALL_KEYS)}\n\n"
+            f"Split this resume into a JSON object with exactly these string keys: {json.dumps(ALL_KEYS)}\n"
             f"Rules:\n"
-            f"- Do NOT include section headings in the values\n"
+            f"- Values must be plain text strings (NOT objects or arrays)\n"
             f"- Preserve all content exactly as written\n"
-            f"- Use empty string for missing sections\n\n"
-            f"RESUME:\n\"\"\"\n{text[:12000]}\n\"\"\""
+            f"- Omit section headings from values\n"
+            f"- Use empty string for missing sections\n"
+            f"RESUME:\n{text[:6000]}"
         )
 
         resp = client._client.chat.completions.create(
@@ -94,7 +96,7 @@ def _groq_split(text):
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,
-            max_tokens=4000,
+            max_tokens=1500,
         )
         content = resp.choices[0].message.content.strip()
         if content.startswith("```"):
@@ -104,7 +106,22 @@ def _groq_split(text):
         if not isinstance(parsed, dict):
             return None
 
-        result = {k: str(parsed.get(k, "")).strip() for k in ALL_KEYS}
+        # Ensure all values are plain strings — reject if Groq returned objects/arrays
+        result = {}
+        for k in ALL_KEYS:
+            val = parsed.get(k, "")
+            if isinstance(val, str):
+                result[k] = val.strip()
+            elif isinstance(val, list):
+                # Groq returned a list — fall back to regex for this run
+                logger.warning("Groq returned list for key '%s' — falling back to regex", k)
+                return None
+            elif isinstance(val, dict):
+                logger.warning("Groq returned dict for key '%s' — falling back to regex", k)
+                return None
+            else:
+                result[k] = str(val).strip() if val else ""
+
         if sum(1 for k, v in result.items() if k != "other" and v) < 1:
             return None
         return result
@@ -133,9 +150,5 @@ def _regex_split(text):
 def split_sections(text):
     if not text or not text.strip():
         return {k: "" for k in ALL_KEYS}
-    result = _groq_split(text)
-    if result:
-        logger.info("section_splitter: used Groq")
-        return result
-    logger.info("section_splitter: Groq failed, using regex fallback")
+    # Use regex only — saves all Groq tokens for LLM feedback scoring
     return _regex_split(text)
