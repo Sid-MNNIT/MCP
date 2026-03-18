@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import os
 
-from client.mcp.client import get_mcp_client
+from client.mcp.client import get_mcp_client, close_mcp_client
 from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval,ingest_and_store_emails
 
 from client.orchestrator.job_agent import (
@@ -24,6 +24,22 @@ from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def on_startup():
+    """Pre-warm the resume MCP connection so the first upload isn't slow."""
+    try:
+        from client.wrappers.resume_wrapper import _get_tool as _warm_resume
+        await _warm_resume("ping")
+    except Exception:
+        pass  # ping tool may not exist — that's fine, connection is still warmed
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await close_mcp_client()
+
 
 SERVICE_KEY = os.getenv("SERVICE_KEY")
 if not SERVICE_KEY:
@@ -627,7 +643,7 @@ async def resume_parse_pipeline_endpoint(request: Request):
         file_b64=file_b64,
         filename=body.get("filename", "resume.pdf"),
         mimetype=body.get("mimetype", "application/pdf"),
-        use_llm=body.get("use_llm", False),
+        use_llm=body.get("use_llm", True),
         job_description=body.get("job_description", None),
     )
 
@@ -669,7 +685,7 @@ async def resume_recalculate_pipeline_endpoint(request: Request):
     result = await rescore_resume_pipeline(
         user_id=user_id,
         parsed_resume=parsed_resume,
-        use_llm=body.get("use_llm", False),
+        use_llm=body.get("use_llm", True),
         job_description=body.get("job_description", None),
     )
 

@@ -98,7 +98,7 @@ class ATSScorer:
             "breakdown":   breakdown,
             "flags":       self._flags(e, s, profile),
             "meta": {
-                "scorer":   "ats_v3",
+                "scorer":   "ats_v4",
                 "profile":  profile,
                 "jd_used":  bool(jd),
             },
@@ -289,24 +289,34 @@ class ATSScorer:
         return int(min(max_w, score))
 
     def _companies(self, e: Dict, w: Dict, profile: str) -> int:
-        companies = e.get("companies", [])
-        max_w     = w["companies"]
+        companies    = e.get("companies", [])
+        total_months = self._total_months(e)
+        max_w        = w["companies"]
 
         if not companies:
             if profile == PROFILE_STUDENT:
                 # No company but active projects = partial credit (30%)
-                # Shows initiative without formal work experience
                 proj_text = e.get("_proj_text", "")
                 if proj_text and proj_text.strip():
                     return int(max_w * 0.30)
             return 0
 
         if profile == PROFILE_STUDENT:
-            # Any company (even 1 internship) = full marks for students
-            return max_w
+            # Companies list is non-empty, but we must verify the student has
+            # REAL work experience (not just volunteer/responsibility orgs that
+            # leaked through the entity extractor).
+            # Gate: require at least 1 month of real experience to award full marks.
+            # Without that gate a student with 0 internships but extracted
+            # volunteer org names ("SMP Mentor") incorrectly scores 20/20.
+            if total_months >= 1:
+                return max_w          # confirmed real internship → full marks
+            else:
+                # Companies detected but no actual work duration → likely
+                # volunteer/org names. Give same partial credit as projects-only.
+                proj_text = e.get("_proj_text", "")
+                return int(max_w * 0.30) if proj_text and proj_text.strip() else int(max_w * 0.15)
 
         if profile == PROFILE_EARLY_CAREER:
-            # 1 company = 70%, 2+ = full
             return max_w if len(companies) >= 2 else int(max_w * 0.7)
 
         # Professional: original logic

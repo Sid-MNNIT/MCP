@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentUser, startGmailSync, getGmailStatus, getEmailStats } from "../utils/api";
+import { getCurrentUser, startGmailSync, getGmailStatus, getEmailStats, getMyResume } from "../utils/api";
 import "../styles/dashboard.css";
 
 import TopHeader from "../components/layout/TopHeader";
@@ -19,6 +19,7 @@ export default function Dashboard() {
     timestamp: "Not connected",
   });
   const [emailStats, setEmailStats] = useState({ interviews: 0, rejections: 0, assessments: 0 });
+  const [resumeData, setResumeData] = useState(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -26,9 +27,11 @@ export default function Dashboard() {
         const userRes = await getCurrentUser();
         const gmailRes = await getGmailStatus();
         const statsRes = await getEmailStats();
+        const resumeRes = await getMyResume();
 
         setUser(userRes.user);
         setEmailStats(statsRes);
+        setResumeData(resumeRes);
 
         setGmail({
           isConnected: gmailRes.connected,
@@ -46,12 +49,10 @@ export default function Dashboard() {
     loadDashboard();
   }, []);
 
-  const data = {
-    resume: {
-      isParsed: true,
-      timestamp: "Updated 2 hours ago",
-    },
-  };
+  const hasResume = resumeData?.data?.hasResume ?? false;
+  const resumeTimestamp = hasResume && resumeData?.data?.resume?.uploadedAt
+    ? `Updated ${new Date(resumeData.data.resume.uploadedAt).toLocaleString()}`
+    : "No resume found";
 
   if (loading) {
     return <div style={{ padding: "2rem" }}>Loading...</div>;
@@ -69,9 +70,9 @@ export default function Dashboard() {
           <StatusCard
             type="resume"
             title="Resume"
-            statusText={data.resume.isParsed ? "Parsed & Ready" : "Not Parsed"}
-            lastUpdated={data.resume.timestamp}
-            state={data.resume.isParsed ? "success" : "error"}
+            statusText={hasResume ? "Parsed & Ready" : "Not Uploaded"}
+            lastUpdated={resumeTimestamp}
+            state={hasResume ? "success" : "error"}
           />
           <StatusCard
             type="gmail"
@@ -85,7 +86,7 @@ export default function Dashboard() {
 
         {/* ── Polish + Recruiter side by side ── */}
         <div className="dashboard-main-grid">
-          <ResumePolishCard />
+          <ResumePolishCard resumeData={resumeData} />
           <RecruiterActivity
             interviews={emailStats.interviews}
             rejections={emailStats.rejections}

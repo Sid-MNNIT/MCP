@@ -25,7 +25,7 @@ def _validate_file(filename: str, mimetype: str) -> Optional[str]:
 async def rescore_resume_pipeline(
     user_id: str,
     parsed_resume: Dict[str, Any],
-    use_llm: bool = False,
+    use_llm: bool = True,
     job_description: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -55,7 +55,7 @@ async def parse_resume_pipeline(
     file_b64: str,
     filename: str = "resume.pdf",
     mimetype: str = "application/pdf",
-    use_llm: bool = False,
+    use_llm: bool = True,
     job_description: Optional[str] = None,
 ) -> Dict[str, Any]:
     """

@@ -1104,14 +1104,14 @@
 .scv2-body {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 22px 22px 14px;
+  gap: 12px;
+  padding: 16px 16px 10px;
 }
 
 /* Icon block */
 .scv2-icon-block {
-  width: 52px;
-  height: 52px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-lg);
   background: var(--card-soft, var(--accent-soft));
   border: 1.5px solid var(--card-border, var(--border-color));
@@ -1144,11 +1144,14 @@
 }
 
 .scv2-value {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.5px;
-  line-height: 1.15;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .scv2-detail {
@@ -1205,7 +1208,7 @@
 
 /* Footer */
 .scv2-footer {
-  padding: 10px 22px 16px;
+  padding: 8px 16px 12px;
   border-top: 1px solid var(--border-color);
   margin-top: auto;
 }

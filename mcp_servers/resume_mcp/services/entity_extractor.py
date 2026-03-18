@@ -261,6 +261,9 @@ def extract_entities(sections):
     exp_lower = exp_text.lower()
 
     # month ranges: "Jan 2022 – Dec 2023"
+    # Track which years are already covered by a month-range match so
+    # YEAR_RANGE_RE does not double-count them on the same line.
+    month_range_years: set = set()
     for g in MONTH_RANGE_RE.findall(exp_lower):
         sy, sm = int(g[1]), MONTH_MAP[g[0]]
         if g[2] == "present":
@@ -269,16 +272,36 @@ def extract_entities(sections):
             em = MONTH_MAP.get(g[2], 1)
             ey = int(g[3]) if g[3] else CURRENT_YEAR
         _walk_months(sy, sm, ey, em, worked_months)
+        month_range_years.add(sy)
+        month_range_years.add(ey)
 
     # year-only ranges: "2022 – 2024"
+    # Skip any year already covered by a more-precise month-range above.
+    # This prevents "July 2025 – Present" from ALSO matching as "2025 – Present"
+    # (which would add all of Jan-Jun 2025, inflating months by ~6).
     for g in YEAR_RANGE_RE.findall(exp_text):
         sy = int(g[0])
         ey = CURRENT_YEAR if g[1].lower() == "present" else int(g[1])
+        # Skip if this range overlaps with an already-processed month-range
+        if sy in month_range_years or ey in month_range_years:
+            continue
         for y in range(sy, min(ey + 1, CURRENT_YEAR + 1)):
             for mo in range(1, 13):
                 if y == CURRENT_YEAR and mo > CURRENT_MONTH:
                     break
                 worked_months.add((y, mo))
+
+    # Strip false positives from company set:
+    # 1. "Present" / date words captured by the trailing "- Present" pattern
+    # 2. Single-word generic terms that are never real company names
+    # 3. Pure location words (India, Remote, etc.)
+    _NOT_COMPANY = re.compile(
+        r"^(present|remote|full[\s-]?time|part[\s-]?time|contract|freelance|"
+        r"india|usa|us|uk|canada|hybrid|onsite|on-site|online|virtual|"
+        r"duration|period|current|ongoing|now|till|since)$",
+        re.IGNORECASE,
+    )
+    companies = {c for c in companies if c and len(c) > 2 and not _NOT_COMPANY.match(c.strip())}
 
     total   = len(worked_months)
     return {
