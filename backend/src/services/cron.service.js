@@ -1,8 +1,10 @@
 import cron from "node-cron";
 import pLimit from "p-limit";
 import { User } from "../models/user.model.js";
+import { Email } from "../models/email.model.js";
 import { emailService } from "./email.service.js";
 import { sseService } from "./sse.service.js";
+import { calendarService } from "./calendar.service.js";
 
 const INITIAL_LOOKBACK_DAYS = 7;
 const INITIAL_MAX_RESULTS = 50;
@@ -65,11 +67,48 @@ class CronService {
 
                   // Push SSE event to browser if user tab is open
                   sseService.emit(user._id, "email-synced", { ts: Date.now() });
+
+                  // ── Step 2: auto-schedule calendar events ──────────────
+                  // Find INTERVIEW emails that haven't been turned into
+                  // calendar events yet and haven't been deleted by the user.
+                  const pendingInterviews = await Email.find({
+                    userId:                user._id,
+                    type:                  "INTERVIEW",
+                    calendarEventCreated:  false,
+                    calendarEventDeleted:  { $ne: true },
+                  }).select("_id").lean();
+
+                  if (pendingInterviews.length > 0) {
+                    console.log(`📅 [CRON] ${pendingInterviews.length} interview email(s) to schedule for: ${user.email}`);
+
+                    for (const interview of pendingInterviews) {
+                      try {
+                        await calendarService.createCalendarEventFromEmail(
+                          user._id,
+                          interview._id
+                        );
+                        console.log(`✅ [CRON] Calendar event created for email: ${interview._id}`);
+                      } catch (calErr) {
+                        // Non-fatal — log and move on to next email
+                        console.warn(`⚠️ [CRON] Calendar event failed for email ${interview._id}: ${calErr.message}`);
+                      }
+                    }
+                  }
+                  // ───────────────────────────────────────────────────────
                 } catch (err) {
-                  console.error(
-                    `❌ [CRON] Failed for ${user.email}:`,
-                    err.message
-                  );
+                  const isRevoked =
+                    err.message?.includes("invalid_grant") ||
+                    err.message?.includes("Token has been expired or revoked") ||
+                    err.message?.includes("Gmail token expired or revoked") ||
+                    err.message?.includes("User must re-authorise Gmail");
+
+                  if (isRevoked) {
+                    // Permanently revoked — stop hammering every 2 minutes
+                    await User.findByIdAndUpdate(user._id, { isGmailConnected: false });
+                    console.warn(`🔌 [CRON] Gmail token revoked for ${user.email} — marked as disconnected. User must re-authenticate.`);
+                  } else {
+                    console.error(`❌ [CRON] Failed for ${user.email}:`, err.message);
+                  }
                 }
               })
             )

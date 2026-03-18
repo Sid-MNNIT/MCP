@@ -4,17 +4,36 @@
 # These platforms send feed-style / marketing emails
 # NOT real job communications
 BLOCKED_DOMAINS = [
+    # Job aggregators — send feed/alert emails, not real recruiter comms
     "linkedin.com",
     "linkedinmail.com",
     "notifications.linkedin.com",
     "careers.linkedin.com",
-
     "glassdoor.com",
     "indeed.com",
     "naukri.com",
     "monster.com",
     "wellfound.com",
     "cutshort.io",
+
+    # Contest / hackathon / internship marketing platforms
+    # These send "your profile is a match" bulk marketing emails
+    # which are NOT real job communications
+    "dare2compete.news",
+    "dare2compete.com",
+    "unstop.com",
+    "unstop.co",
+    "d2c.unstop.com",
+
+    # Other common marketing/newsletter job platforms
+    "internshala.com",
+    "shine.com",
+    "foundit.in",
+    "hirist.com",
+    "apna.co",
+    "freshersworld.com",
+    "placementindia.com",
+    "careerjet.co.in",
 ]
 
 # -----------------------------
@@ -104,6 +123,28 @@ INTENT_PHRASES = [
     "move forward with other candidates",
     "not moving forward",
     "profile does not align",
+
+    # Common interview scheduling phrases
+    "schedule an interview",
+    "schedule a call",
+    "schedule a meeting",
+    "like to invite you",
+    "would like to connect",
+    "looking forward to speaking",
+    "next steps",
+    "move forward with your application",
+    "pleased to inform",
+    "happy to inform",
+    "selected for",
+    "selected you",
+    "round of interview",
+    "technical interview",
+    "hr interview",
+    "virtual interview",
+    "video interview",
+    "phone screen",
+    "hiring process",
+    "recruitment process",
 ]
 
 # -----------------------------
@@ -139,9 +180,25 @@ def compute_job_score(email: dict) -> int:
 
 
 # -----------------------------
+# BLOCKED SENDER KEYWORDS
+# -----------------------------
+# Caught by sender name rather than domain
+# for cases where subdomain varies
+BLOCKED_SENDER_KEYWORDS = [
+    "unstop",
+    "dare2compete",
+    "internshala",
+    "noreply@shine",
+    "noreply@apna",
+    "noreply@foundit",
+    "noreply@hirist",
+]
+
+
+# -----------------------------
 # FINAL DECISION FUNCTION
 # -----------------------------
-def is_job_related(email: dict, threshold: int = 3) -> bool:
+def is_job_related(email: dict, threshold: int = 2) -> bool:
     """
     Decide if an email should be passed to LLM for validation.
     This is a FAST, recall-focused filter.
@@ -149,8 +206,12 @@ def is_job_related(email: dict, threshold: int = 3) -> bool:
 
     sender = (email.get("from") or "").lower()
 
-    # Hard exclusion first
+    # Hard exclusion by domain
     if any(domain in sender for domain in BLOCKED_DOMAINS):
+        return False
+
+    # Hard exclusion by sender keyword (catches subdomain variations)
+    if any(keyword in sender for keyword in BLOCKED_SENDER_KEYWORDS):
         return False
 
     score = compute_job_score(email)

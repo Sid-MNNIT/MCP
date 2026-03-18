@@ -5,15 +5,24 @@
 # OAuth secrets
 client_secret_*.json
 
-<<<<<<< HEAD
 # Python cache
 __pycache__/
 *.pyc
 
+# Python virtual environment
 jobsy/
-=======
-__pycache__/ 
-*.pyc 
-jobsy/ 
->>>>>>> 246bc3976b4455b1226dbb1ccd04c00512754b80
-*.pdf 
+
+# PDF files
+*.pdf
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*

@@ -285,7 +285,10 @@ async def handle_user_message(
                     "- Be concise, warm, and friendly.\n"
                     "- Use markdown: bold for names/companies, bullet points for lists.\n"
                     "- Keep it under 250 words.\n"
-                    "- Never show raw JSON or field names like 'emailId' or '_id'."
+                    "- Never show raw JSON or field names like 'emailId', '_id', 'lastSubject', 'emailCount', 'lastContact'.\n"
+                    "- For interview emails: show the subject, sender, date naturally. E.g. '**Flipkart** — Interview Scheduled for March 30 at 10:30 AM'.\n"
+                    "- Never use technical grouping fields. Present each email as a human-readable item.\n"
+                    "- If data has a meeting link, show it as a clickable link."
                 ),
             },
             {"role": "user", "content": f"User asked: {user_message}"},

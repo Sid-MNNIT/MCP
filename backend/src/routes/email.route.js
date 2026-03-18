@@ -2,14 +2,15 @@ import { Router } from "express";
 import {
   storeEmail,
   listEmails,
-   deleteEmail,
-   getUserEmail,
-   executeAgentTool,
-   emailReplyPreview,
-   emailReplySend,
-   emailSync,
-   toggleStarEmail,
-   queryEmails,
+  deleteEmail,
+  getUserEmail,
+  executeAgentTool,
+  emailReplyPreview,
+  emailReplySend,
+  emailSync,
+  toggleStarEmail,
+  queryEmails,
+  checkExistingEmailIds,
 } from "../controllers/email.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
@@ -26,6 +27,7 @@ router.delete("/:id", verifyJWT, deleteEmail);
 router.patch("/:id/star", verifyJWT,toggleStarEmail);
 
 router.post("/query", verifyJWT, queryEmails);
+router.post("/exists", verifyJWT, checkExistingEmailIds);
 
 
 

@@ -108,6 +108,11 @@ RULES (DO NOT BREAK)
    → ALWAYS use email_reply_preview pipeline.
 9. For email_query, extract the sender company name into args.sender
    (e.g. "desmus and co" → sender: "desmus", "amazon" → sender: "amazon").
+10. "scheduled interviews", "upcoming interviews", "my interviews", "interview emails"
+    → ALWAYS use email_query with args.type = "INTERVIEW", NEVER application_stats.
+11. "how is my job search", "application status", "track my applications"
+    → use application_stats pipeline.
+12. NEVER use application_stats for questions about specific email types like interviews.
 
 --------------------------------------------------
 AVAILABLE PIPELINES
@@ -185,6 +190,15 @@ User: Show me my offer emails / list my interview emails / any rejection emails?
   "args": {{"type": "OFFER"}},
   "confidence": 0.92,
   "reasoning": "User wants to see emails filtered by type. Use email_query with the type field."
+}}
+
+User: What interviews do I have scheduled? / Show my scheduled interviews / any upcoming interviews?
+{{
+  "type": "ACTION",
+  "pipeline": "email_query",
+  "args": {{"type": "INTERVIEW"}},
+  "confidence": 0.95,
+  "reasoning": "User wants interview emails. Use email_query with type=INTERVIEW, NOT application_stats."
 }}
 
 User: What emails did I receive this week? / Show me all my emails

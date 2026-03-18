@@ -2,7 +2,7 @@ from client.backend_client.agent_api import execute_tool
 from client.wrappers.gmail_wrapper import clean_email_body
 from client.orchestrator.email_prompt_builder import build_email_prompt
 from client.orchestrator.email_mapper import map_to_backend
-from client.backend_client.email_api import save_email
+from client.backend_client.email_api import save_email, get_existing_email_ids
 from client.llm.llm_service import generate_email_reply
 
 import json
@@ -128,7 +128,20 @@ async def ingest_and_store_emails(jwt: str = None, user_id: str = None):
 
     stored = []
 
-    for email in emails:
+    # ── Pre-filter: skip LLM for emails already in MongoDB ──────────────
+    # This is the key token-saver. On every incremental cron run the same
+    # 10 emails come back from Gmail. Without this check we'd call Groq
+    # for every one of them even though they're already stored.
+    all_ids = [e["id"] for e in emails if e.get("id")]
+    existing_ids = get_existing_email_ids(all_ids, jwt=jwt, user_id=user_id)
+    new_emails = [e for e in emails if e.get("id") not in existing_ids]
+
+    skipped = len(emails) - len(new_emails)
+    if skipped > 0:
+        print(f"⏭️  [email_agent] Skipping {skipped} already-stored emails (saved {skipped} Groq calls)")
+    # ─────────────────────────────────────────────────────────────────────
+
+    for email in new_emails:
         email["body"] = clean_email_body(email.get("body", ""))
 
         payload = map_to_backend(email)

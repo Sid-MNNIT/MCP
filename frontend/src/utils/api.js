@@ -577,3 +577,64 @@ export const recalculateScore = async () => {
 
   return res.json();
 };
+
+
+// ── Calendar APIs ──────────────────────────────
+export const getCalendarAuthUrl = async () => {
+  const res = await fetch(`${BASE_URL}/calendar/auth-url`, {
+    credentials: "include",
+  });
+  const data = await res.json();
+  return data.data.authUrl;
+};
+
+export const getCalendarConnectionStatus = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/calendar/status`, {
+      credentials: "include",
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.data.isConnected;
+  } catch {
+    return false;
+  }
+};
+
+export const getCalendarEvents = async (startDate, endDate) => {
+  const params = new URLSearchParams({
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+  });
+  const res = await fetch(`${BASE_URL}/calendar/events?${params}`, {
+    credentials: "include",
+  });
+  const data = await res.json();
+  return data.data.events;
+};
+
+export const getAllCalendarEvents = async () => {
+  const res = await fetch(`${BASE_URL}/calendar/events/all`, {
+    credentials: "include",
+  });
+  const data = await res.json();
+  return data.data.events;
+};
+
+export const deleteCalendarEvent = async (eventId) => {
+  const res = await fetch(`${BASE_URL}/calendar/events/${eventId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to delete event");
+  return true;
+};
+
+export const disconnectCalendar = async () => {
+  const res = await fetch(`${BASE_URL}/calendar/disconnect`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to disconnect calendar");
+  return true;
+};

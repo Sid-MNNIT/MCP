@@ -1,6 +1,6 @@
 import json
 
-from client.llm.groq_client import get_groq_client
+from client.llm.groq_client import get_groq_client, groq_chat_with_fallback
 
 
 MODEL_ID = "llama-3.1-8b-instant"
@@ -12,9 +12,7 @@ def generate_email_reply(prompt: str) -> str:
     Returns ONLY the email body.
     """
 
-    client = get_groq_client()
-
-    response = client.chat.completions.create(
+    response = groq_chat_with_fallback(
         model=MODEL_ID,
         messages=[
             {
@@ -63,9 +61,7 @@ Body:
 {body}
 """.strip()
 
-    client = get_groq_client()
-
-    response = client.chat.completions.create(
+    response = groq_chat_with_fallback(
         model=MODEL_ID,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
@@ -135,14 +131,11 @@ Conversation context:
 {conversation_context}
 """.strip()
 
-    client = get_groq_client()
-
-    response = client.chat.completions.create(
+    response = groq_chat_with_fallback(
         model=MODEL_ID,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_tokens=120,
-        
     )
 
     raw_text = response.choices[0].message.content.strip()
@@ -224,9 +217,7 @@ Email Body:
 {text}
 """.strip()
 
-    client = get_groq_client()
-
-    response = client.chat.completions.create(
+    response = groq_chat_with_fallback(
         model=MODEL_ID,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,

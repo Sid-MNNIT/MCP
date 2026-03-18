@@ -66,15 +66,16 @@ const listEmails = asyncHandler(async (req, res) => {
   });
 });
 
-//delete email
+//delete email — soft delete so cron never re-fetches it
 const deleteEmail = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { id } = req.params;
 
-  const deletedEmail = await Email.findOneAndDelete({
-    _id: id,
-    userId,
-  });
+  const deletedEmail = await Email.findOneAndUpdate(
+    { _id: id, userId },
+    { $set: { deletedByUser: true } },
+    { new: true }
+  );
 
   if (!deletedEmail) {
     return res.status(404).json({
@@ -93,7 +94,7 @@ const getUserEmail = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { sent, starred } = req.query;
 
-  const filter = { userId };
+  const filter = { userId, deletedByUser: { $ne: true } };
 
   // ⭐ Starred is independent
   if (starred === "true") {
@@ -269,7 +270,7 @@ const queryEmails = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { sender, type, folder, keyword, limit = 20 } = req.body;
 
-  const filter = { userId };
+  const filter = { userId, deletedByUser: { $ne: true } };
 
   // Filter by sender name/email (e.g. "amazon", "google")
   if (sender) {
@@ -308,6 +309,32 @@ const queryEmails = asyncHandler(async (req, res) => {
 
 
 
+// POST /api/emails/exists
+// Body: { emailIds: ["id1", "id2", ...] }
+// Returns: { existingIds: ["id1", ...] }
+const checkExistingEmailIds = asyncHandler(async (req, res) => {
+  const userId = req.user?._id || req.headers["x-user-id"] || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  const { emailIds } = req.body;
+
+  if (!Array.isArray(emailIds) || emailIds.length === 0) {
+    return res.status(200).json({ existingIds: [] });
+  }
+
+  const found = await Email.find(
+    { userId, emailId: { $in: emailIds } },
+    { emailId: 1 }   // only fetch the emailId field
+  ).lean();
+
+  const existingIds = found.map(e => e.emailId);
+
+  return res.status(200).json({ existingIds });
+});
+
 export {
   storeEmail,
   listEmails,
@@ -318,5 +345,6 @@ export {
   emailReplySend,
   executeAgentTool,
   toggleStarEmail,
-  queryEmails,      
+  queryEmails,
+  checkExistingEmailIds,
 };

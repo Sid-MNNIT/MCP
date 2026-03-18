@@ -60,11 +60,28 @@ const emailSchema = new mongoose.Schema(
   type: String,
   required: true
 },
+calendarEventCreated: {
+  type: Boolean,
+  default: false,
+},
+
+calendarEventDeleted: {
+  type: Boolean,
+  default: false,
+},
 
 
     isEmbedded: {
       type: Boolean,
       default: false,
+    },
+
+    // Soft-delete: user dismissed this email from the UI.
+    // Kept as a tombstone so the cron never re-fetches and re-classifies it.
+    deletedByUser: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   { timestamps: true }

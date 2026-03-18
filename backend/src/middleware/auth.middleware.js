@@ -24,8 +24,12 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     if (serviceKey && serviceKey === process.env.SERVICE_KEY && xUserId) {
       // Attach a minimal user object so controllers can use req.user._id safely
       req.user = { _id: xUserId };
+      return next();
     }
-    return next();
+    return res.status(401).json({
+    success: false,
+    message: "Unauthorized: no token provided",
+  });
   }
 
   // ✅ 3. Verify token safely
