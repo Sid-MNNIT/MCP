@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import os
 
-from client.mcp.client import get_mcp_client
+from client.mcp.client import get_mcp_client, close_mcp_client
 from client.orchestrator.email_agent import prepare_email_reply_preview,send_email_with_approval,ingest_and_store_emails
 
 from client.orchestrator.job_agent import (
@@ -18,12 +18,17 @@ from client.wrappers.resume_wrapper import _get_tool as _warm_resume
 from client.orchestrator.calendar_agent import create_calendar_event_pipeline
 from client.orchestrator.calendar_email_extractor import extract_calendar_from_email_pipeline
 from client.backend_client.email_query_api import query_emails_from_db
+from client.backend_client.calendar_api import get_upcoming_calendar_events
+from client.backend_client.resume_api import get_user_resume
 from client.backend_client.email_digest_api import fetch_emails_for_digest
 from client.ask_jobsy.entrypoint import handle_user_message
 from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI()
+
+
+
 
 SERVICE_KEY = os.getenv("SERVICE_KEY")
 if not SERVICE_KEY:
@@ -73,11 +78,9 @@ async def auth_middleware(request: Request, call_next):
         if auth and auth.startswith("Bearer "):
             jwt_token = auth[7:].strip()
             request.state.jwt = jwt_token
-            # Note: Actual JWT validation happens in individual pipelines
-            # You could add JWT decode here to set user_id if needed
+
         else:
-            # Some endpoints might not require JWT (like health checks)
-            # We'll let individual endpoints enforce JWT requirement
+
             pass
     
     else:
@@ -393,6 +396,137 @@ async def calendar_create_event_endpoint(request: Request):
 
 
 
+@app.post("/pipelines/interview-prep")
+async def interview_prep_pipeline(request: Request):
+    """
+    Personalized interview preparation based on resume + interview email.
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    company = body.get("company", "").strip()
+    if not company:
+        raise HTTPException(status_code=400, detail="company is required")
+
+    print(f"📚 [InterviewPrep] Preparing for: {company}")
+
+    # Step 1: Fetch resume
+    resume_data = await get_user_resume(jwt=jwt)
+    parsed_resume = resume_data.get("parsed_resume", {})
+
+    # Step 2: Fetch interview email for this company
+    email_result = await query_emails_from_db(
+        jwt=jwt,
+        keyword=company,
+        type="INTERVIEW",
+        limit=3,
+    )
+    emails = email_result.get("emails", [])
+
+    # Fallback: search without type filter if no interview email found
+    if not emails:
+        email_result = await query_emails_from_db(
+            jwt=jwt,
+            keyword=company,
+            limit=3,
+        )
+        emails = email_result.get("emails", [])
+
+    # Step 3: Cross-reference resume + email with GPT
+    from client.llm.openai_client import get_openai_client, get_openai_model
+    import json as _json
+
+    client_llm = get_openai_client()
+    model = get_openai_model()
+
+    # Summarize resume into readable text
+    resume_text = _json.dumps(parsed_resume, indent=2) if parsed_resume else "No resume found."
+
+    # Get email content
+    email_text = "No interview email found."
+    if emails:
+        e = emails[0]
+        email_text = f"Subject: {e.get('subject', '')}\nFrom: {e.get('from', '')}\nBody: {e.get('text', '')[:2000]}"
+
+    response_llm = client_llm.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are Jobsy AI, an expert career coach. "
+                    "You will be given a user's resume data and an interview email from a company. "
+                    "Your job is to give HIGHLY SPECIFIC, PERSONALIZED preparation advice.\n\n"
+                    "RULES:\n"
+                    "1. Read the email carefully — extract what topics, skills, or rounds are mentioned.\n"
+                    "2. Read the resume — identify what the user already knows vs what gaps exist.\n"
+                    "3. Give concrete, actionable advice: specific topics to study, specific gaps to fill.\n"
+                    "4. If email mentions 'System Design' and resume lacks it — say so explicitly.\n"
+                    "5. Suggest what to ADD to the resume to make it stronger for THIS specific company.\n"
+                    "6. Be direct, warm, and specific. No generic advice.\n"
+                    "7. Format with clear sections: Topics to Study, Resume Gaps, Resume Improvements.\n"
+                    "8. Keep it under 400 words."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"I have an interview at {company}. Help me prepare.\n\n"
+                    f"=== INTERVIEW EMAIL ===\n{email_text}\n\n"
+                    f"=== MY RESUME DATA ===\n{resume_text}"
+                ),
+            },
+        ],
+        temperature=0.5,
+        max_tokens=700,
+    )
+
+    advice = response_llm.choices[0].message.content.strip()
+    print(f"✅ [InterviewPrep] Generated advice for {company}")
+
+    return {
+        "success": True,
+        "company": company,
+        "advice": advice,
+        "hasResume": bool(parsed_resume),
+        "hasEmail": bool(emails),
+    }
+
+
+@app.post("/pipelines/calendar-events")
+async def calendar_events_pipeline(request: Request):
+    """
+    Fetch upcoming calendar events for the user.
+    Used by the chatbot to answer 'what are my upcoming interviews'.
+    """
+    if request.headers.get("X-Service-Key") != SERVICE_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized service")
+
+    body = await request.json()
+    jwt = request.state.jwt
+
+    if not jwt:
+        raise HTTPException(status_code=401, detail="JWT missing")
+
+    days = body.get("days", 30)
+
+    try:
+        events = await get_upcoming_calendar_events(jwt=jwt, days=days)
+        return {
+            "success": True,
+            "count": len(events),
+            "events": events,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/pipelines/extract-calendar-from-email")
 async def extract_calendar_from_email_endpoint(request: Request):
     """
@@ -438,14 +572,31 @@ async def email_query_pipeline(request: Request):
     if not jwt:
         raise HTTPException(status_code=401, detail="JWT missing")
 
+    sender = body.get("sender")
+    keyword = body.get("keyword")
+
+    # Try sender filter first
     result = await query_emails_from_db(
         jwt=jwt,
-        sender=body.get("sender"),
+        sender=sender,
         type=body.get("type"),
         folder=body.get("folder"),
-        keyword=body.get("keyword"),
+        keyword=keyword,
         limit=body.get("limit", 20),
     )
+
+    # If sender search returned nothing, fall back to keyword search on subject/body
+    # This handles cases where emails were sent from the user's own Gmail (test emails)
+    # where the 'from' field doesn't contain the company name
+    if sender and not result.get("emails"):
+        print(f"📧 [email-query] No results for sender='{sender}', falling back to keyword search")
+        result = await query_emails_from_db(
+            jwt=jwt,
+            keyword=sender,  # search company name in subject/body
+            type=body.get("type"),
+            folder=body.get("folder"),
+            limit=body.get("limit", 20),
+        )
 
     return result
 
@@ -627,7 +778,7 @@ async def resume_parse_pipeline_endpoint(request: Request):
         file_b64=file_b64,
         filename=body.get("filename", "resume.pdf"),
         mimetype=body.get("mimetype", "application/pdf"),
-        use_llm=body.get("use_llm", False),
+        use_llm=body.get("use_llm", True),
         job_description=body.get("job_description", None),
     )
 
@@ -669,7 +820,7 @@ async def resume_recalculate_pipeline_endpoint(request: Request):
     result = await rescore_resume_pipeline(
         user_id=user_id,
         parsed_resume=parsed_resume,
-        use_llm=body.get("use_llm", False),
+        use_llm=body.get("use_llm", True),
         job_description=body.get("job_description", None),
     )
 

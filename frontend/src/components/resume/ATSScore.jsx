@@ -132,25 +132,64 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               <div className="score-label">out of 100</div>
             </div>
 
-            {/* Breakdown bars — maxes pulled from profile */}
+            {/* Breakdown bars — profile-aware labels + weights */}
             <div className="score-breakdown">
-              <h4>Score Breakdown</h4>
+              <div className="breakdown-header">
+                <h4>Score Breakdown</h4>
+                {profile && profile !== "professional" && (
+                  <span className="breakdown-note">
+                    {profile === "student" ? "Student-weighted" : "Junior-weighted"}
+                  </span>
+                )}
+              </div>
               {Object.entries(scoreData.ats.breakdown).map(([key, value]) => {
                 const max        = maxMap[key] ?? 20;
                 const percentage = Math.min((value / max) * 100, 100);
-                const color      = percentage >= 75 ? "#10b981" : percentage >= 50 ? "#f59e0b" : "#ef4444";
+                // For student profile, low-weight categories (roles/exp/companies)
+                // are expected to be low — show them in neutral gray, not red
+                const isLowWeightForStudent =
+                  profile === "student" && ["roles", "experience", "companies"].includes(key);
+                const color = isLowWeightForStudent
+                  ? (percentage >= 60 ? "#10b981" : "#94a3b8")
+                  : (percentage >= 75 ? "#10b981" : percentage >= 50 ? "#f59e0b" : "#ef4444");
+
+                // Profile-aware labels
+                const LABELS = {
+                  student: {
+                    skills:     "Technical Skills",
+                    roles:      "Project Depth",
+                    experience: "Activity Score",
+                    structure:  "Resume Structure",
+                    companies:  "Internship Credit",
+                  },
+                  early_career: {
+                    skills:     "Technical Skills",
+                    roles:      "Role Experience",
+                    experience: "Work Duration",
+                    structure:  "Resume Structure",
+                    companies:  "Companies",
+                  },
+                };
+                const label = LABELS[profile]?.[key] ?? (key.charAt(0).toUpperCase() + key.slice(1));
+
                 return (
                   <div key={key} className="breakdown-row">
-                    <span className="breakdown-key">
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </span>
+                    <span className="breakdown-key">{label}</span>
                     <div className="breakdown-bar">
                       <div className="breakdown-fill" style={{ width: `${percentage}%`, backgroundColor: color }} />
                     </div>
-                    <span className="breakdown-value">{value}/{max}</span>
+                    <span className="breakdown-value"
+                      style={{ color: isLowWeightForStudent ? "var(--color-text-secondary)" : undefined }}>
+                      {value}/{max}
+                    </span>
                   </div>
                 );
               })}
+              {profile === "student" && (
+                <p className="breakdown-student-note">
+                  Project Depth, Activity Score &amp; Internship Credit carry less weight for students — Technical Skills &amp; Resume Structure matter most.
+                </p>
+              )}
             </div>
 
             {/* Flags */}
@@ -172,24 +211,67 @@ const ATSScore = ({ scoreData, uploadedFile, isCalculating, isLoadingResume, onC
               </div>
             )}
 
-            {/* LLM Suggestions */}
-            {scoreData.llm_feedback?.length > 0 && (
-              <div className="feedback-section">
-                <h4>Suggestions</h4>
-                {scoreData.llm_feedback.map((text, i) => (
-                  <div key={i} className="feedback-item feedback-info">
-                    <span className="feedback-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                    </span>
-                    <span className="feedback-text">{typeof text === "string" ? text : text?.text ?? ""}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* LLM Feedback — severity-based (green/yellow/red) */}
+            {scoreData.llm_feedback?.length > 0 && (() => {
+              const green  = scoreData.llm_feedback.filter(f => f?.severity === "green");
+              const yellow = scoreData.llm_feedback.filter(f => !f?.severity || f?.severity === "yellow");
+              const red    = scoreData.llm_feedback.filter(f => f?.severity === "red");
+              const getText = (f) => (typeof f === "string" ? f : f?.text ?? "");
+              return (
+                <>
+                  {green.length > 0 && (
+                    <div className="feedback-section">
+                      <h4>What's strong</h4>
+                      {green.map((f, i) => (
+                        <div key={i} className="feedback-item feedback-good">
+                          <span className="feedback-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                              <polyline points="22 4 12 14.01 9 11.01" />
+                            </svg>
+                          </span>
+                          <span className="feedback-text">{getText(f)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {yellow.length > 0 && (
+                    <div className="feedback-section">
+                      <h4>Suggestions</h4>
+                      {yellow.map((f, i) => (
+                        <div key={i} className="feedback-item feedback-info">
+                          <span className="feedback-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                          </span>
+                          <span className="feedback-text">{getText(f)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {red.length > 0 && (
+                    <div className="feedback-section">
+                      <h4>Critical issues</h4>
+                      {red.map((f, i) => (
+                        <div key={i} className="feedback-item feedback-error">
+                          <span className="feedback-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                          </span>
+                          <span className="feedback-text">{getText(f)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
           </div>
         )}

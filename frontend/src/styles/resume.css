@@ -427,15 +427,21 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 12px 0;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+/* When h4 is standalone (not inside .breakdown-header), keep bottom margin */
+.feedback-section h4,
+.score-breakdown > h4 {
+  margin: 0 0 12px 0;
+}
+
 .breakdown-row {
   display: grid;
-  grid-template-columns: 100px 1fr 50px;
-  gap: 12px;
+  grid-template-columns: 130px 1fr 46px;
+  gap: 10px;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -529,6 +535,50 @@
 
 .feedback-info .feedback-icon {
   color: #6366f1;
+}
+
+.feedback-good {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.feedback-good .feedback-icon {
+  color: #10b981;
+}
+
+/* ========================================= */
+/* BREAKDOWN HEADER + STUDENT NOTE */
+/* ========================================= */
+
+.breakdown-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.breakdown-header h4 {
+  margin: 0;
+}
+
+.breakdown-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.breakdown-student-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 10px 0 0 0;
+  line-height: 1.5;
+  font-style: italic;
 }
 
 /* ========================================= */

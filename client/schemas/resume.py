@@ -49,10 +49,15 @@ class ATSResult(BaseModel):
     meta:        Dict[str, object] = {}
 
 
+class LLMFeedbackItem(BaseModel):
+    text:     str
+    severity: str = "yellow"  # green | yellow | red
+
+
 class ResumeScoreResult(BaseModel):
     final_score:  int
     ats:          ATSResult
-    llm_feedback: List[str] = []
+    llm_feedback: List[LLMFeedbackItem] = []
 
 
 class ResumePipelineResponse(BaseModel):

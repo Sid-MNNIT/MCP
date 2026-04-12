@@ -74,6 +74,10 @@ const TECH_STACK_RE  = /^([A-Za-z0-9.#+\- ]{1,30}(,\s*[A-Za-z0-9.#+\- ]{1,30}){1
 const BULLET_LINE_RE = /^[-*–—]/;
 // Sentence starters — lines that are clearly descriptions, not project titles
 const DESCRIPTION_RE = /^(a |an |the |this |with |using |for |built |developed |developing |creating |designed |designing |integrated |integrating |organized |organiz|building |implement|support|enabling |enabling|tools |tools:|technologies|framework)/i;
+// Education content that should never appear as a project title
+const EDU_CONTENT_RE = /\b(board|cbse|icse|igcse|central board|state board|matriculation|percentage|cgpa|cpi|gpa|sgpa|b\.?tech|b\.?e\.?|bachelor|master|diploma|pursuing|enrolled|school|college|university|institute|rajasthan|jharkhand|lucknow|prayagraj|jamshedpur|allahabad|class\s+[xivXIV]+|class\s+\d+|std\.?\s+\d+)\b/i;
+// Score/percentage patterns that identify education lines (e.g. "ICSE (Class X) | 98.4%")
+const SCORE_LINE_RE = /[\d.]+\s*%|\|\s*[\d.]+/;
 
 // Strip trailing " | GitHub" or "| GitHub" from project title lines
 const stripGithubSuffix = (s) => s.replace(/\s*\|?\s*github\s*$/i, "").trim();
@@ -88,9 +92,13 @@ const isProjectHeading = (line) => {
   if (TECH_STACK_RE.test(stripped))            return false;
   if (BULLET_LINE_RE.test(stripped))           return false;  // still a bullet after strip = nested bullet
   if (DESCRIPTION_RE.test(stripped))           return false;  // sentence description, not a title
+  if (EDU_CONTENT_RE.test(stripped))           return false;  // education content, not a project title
+  if (SCORE_LINE_RE.test(stripped))            return false;  // has a score/percentage = education line
   if (stripped.length > 80)                    return false;  // generous limit for descriptive titles
   if (stripped.includes(" via "))              return false;  // "connecting them to backend via REST API"
   if (stripped.includes(" using ") && stripped.length > 40) return false;  // long "using" sentences
+  // Bare API/SDK/lib names are detail fragments, not project titles
+  if (/\b(API|SDK|CLI|UI|DB|ORM|JWT|REST|MCP|RAG|LLM|NLP)$/.test(stripped)) return false;
   if (!/^[A-Z0-9"'(\[]/.test(stripped))        return false;
   return true;
 };
@@ -224,9 +232,9 @@ const parseAchievements = (text = "") => {
       // Some PDFs concatenate a bold label directly with content e.g.
       // "Problem SolvingSolved 380+ problems..."
       // "Competitive ProgrammingAchieved a maximum..."
-      // Detect: starts with a capitalised run of words with no space, then a capital letter starts content
-      // Split on the boundary between the label and the sentence
-      s = s.replace(/^([A-Z][a-z]+(?:[A-Z][a-z]+)+)([A-Z][a-z])/, "$2");
+      // Pattern: one or more TitleCase words immediately followed by another capital letter starting the real content
+      // Keep only the content part (after the label)
+      s = s.replace(/^(?:[A-Z][a-z]+\s*)+([A-Z][a-z])/, "$1");
       return s;
     })
     .filter((l) => {
@@ -418,7 +426,7 @@ const ResumeMetadata = ({ metadataData }) => {
             </div>
           )}
 
-          {/* INTERNSHIPS */}
+          {/* INTERNSHIPS — only real companies, not volunteer orgs */}
           {isStudent && companies.length > 0 && (
             <div className="metadata-section">
               <h4>Internships</h4>
@@ -432,6 +440,39 @@ const ResumeMetadata = ({ metadataData }) => {
               </div>
             </div>
           )}
+
+          {/* POSITIONS OF RESPONSIBILITY — from volunteer section */}
+          {isStudent && sections.volunteer?.trim() && (() => {
+            const lines = sections.volunteer
+              .split("\n")
+              .map((l) => l.replace(/^[-*–—•]\s*/, "").trim())
+              .filter((l) => l.length > 3);
+            if (!lines.length) return null;
+            return (
+              <div className="metadata-section">
+                <h4>Positions of Responsibility</h4>
+                <div className="projects-preview">
+                  {lines.slice(0, 4).map((line, i) => {
+                    // split "Role  Date" — date is after 3+ spaces or a tab
+                    const dateMatch = line.match(/^(.+?)\s{2,}(.+)$/);
+                    const role = dateMatch ? dateMatch[1].trim() : line;
+                    const date = dateMatch ? dateMatch[2].trim() : "";
+                    // skip pure date-only lines
+                    if (/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})/i.test(line)) return null;
+                    return (
+                      <div key={i} className="project-entry">
+                        <div className="project-line">
+                          <span className="project-bullet" />
+                          <span className="project-name">{role}</span>
+                        </div>
+                        {date && <div className="project-detail">{date}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* DETECTED ROLES */}
           {roles.length > 0 && (

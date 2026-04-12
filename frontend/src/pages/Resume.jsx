@@ -126,7 +126,7 @@ export default function Resume() {
         // Detect stale score: scorer version is not ats_v3
         // If stale and parsed data exists, silently recalculate in the background
         const scorerVersion = score?.ats?.meta?.scorer;
-        const isStaleScore  = scorerVersion !== "ats_v3";
+        const isStaleScore  = scorerVersion !== "ats_v4";
 
         if (isStaleScore && parsed?.entities) {
           console.log(`🔄 Stale score detected (${scorerVersion ?? "none"}), recalculating with ats_v3...`);
@@ -146,6 +146,18 @@ export default function Resume() {
           if (score?.final_score !== undefined) {
             setScoreData(score);
             setSavedScoreData(score);
+          }
+          // back-fill llm_good/llm_improvement/llm_bad for old cached scores
+          // that only have llm_feedback so the UI renders gracefully
+          // Back-fill: old cached scores stored llm_feedback as plain strings.
+          // Wrap them as {text, severity: "yellow"} so the new UI renders them.
+          if (score?.llm_feedback?.length && typeof score.llm_feedback[0] === "string") {
+            const patched = {
+              ...score,
+              llm_feedback: score.llm_feedback.map(t => ({ text: t, severity: "yellow" }))
+            };
+            setScoreData(patched);
+            setSavedScoreData(patched);
           }
         }
       } catch (err) {
