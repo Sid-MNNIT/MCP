@@ -110,6 +110,20 @@ mcpintegrat/
 │   ├── gmail_mcp/            # Gmail MCP server
 │   ├── job_search_mcp/       # Job search MCP server
 │   └── resume_mcp/           # Resume analysis MCP server
+│       ├── main.py           # FastMCP server entry point (parse_resume, ats_score, ping)
+│       ├── pipelines/
+│       │   ├── extract_pipeline.py  # PDF text → structured sections + entities
+│       │   └── score_pipeline.py    # ATS + optional Groq LLM scoring pipeline
+│       ├── services/
+│       │   ├── pdf_loader.py        # PDF/DOCX text extraction (PyMuPDF + pdfplumber fallback)
+│       │   ├── section_splitter.py  # Regex-based section detection (12 section types)
+│       │   ├── entity_extractor.py  # Extracts skills, roles, companies, experience duration
+│       │   ├── ats_scorer.py        # Profile-aware ATS scoring (student / early / professional)
+│       │   ├── llm_scorer.py        # Groq LLM feedback (strengths, improvements, critical)
+│       │   └── groq_client.py       # Groq API wrapper with 429 retry logic
+│       └── utils/
+│           ├── text_utils.py        # Unicode normalization, bullet char cleanup
+│           └── date_utils.py        # Date utilities
 │
 ├── frontend/                 # React + Vite application
 │   ├── src/
@@ -185,7 +199,15 @@ mcpintegrat/
 - **Job Search MCP** - Job board integrations
 - **Resume MCP** - Document parsing and analysis
 
-### 7. **LLM Provider Support**
+### 7. **Resume Analysis & ATS Scoring**
+- PDF and DOCX text extraction (PyMuPDF primary, pdfplumber fallback)
+- Section detection across 12 types: experience, projects, skills, education, certifications, achievements, and more
+- Entity extraction: skills, roles, companies, seniority, and total experience duration
+- Profile-aware ATS scoring with adaptive weights (student / early-career / professional)
+- Optional Groq LLM feedback: strengths, improvements, and critical issues
+- Job description matching for targeted fit scoring
+
+### 8. **LLM Provider Support**
 - **Groq API** - Fast inference with open models
 - **OpenAI API** - GPT models for advanced tasks
 - Pluggable LLM service layer
@@ -212,6 +234,7 @@ mcpintegrat/
 - **Vector DB**: [Configured in `rag/`]
 - **Async**: asyncio, aiohttp
 - **Data Validation**: Pydantic
+- **PDF Parsing**: PyMuPDF, pdfplumber, python-docx
 - **Testing**: pytest
 - **Utilities**: python-dotenv, Redis client
 
@@ -340,6 +363,14 @@ python -m server
 # Requires: Gmail API credentials
 ```
 
+#### Resume MCP
+```bash
+cd mcp_servers/resume_mcp
+pip install groq pymupdf pdfplumber python-docx
+python main.py
+# Requires: GROQ_API_KEY in root .env (runs on port 8001)
+```
+
 #### Job Search MCP
 ```bash
 cd mcp_servers/job_search_mcp
@@ -362,8 +393,13 @@ python -m server
 #### User Profile
 - `GET /api/user/:id` - Get user profile
 - `PUT /api/user/:id` - Update profile
-- `GET /api/profile/resume` - Get resume
-- `POST /api/profile/resume` - Upload resume
+
+#### Resume
+- `POST /api/resume` - Upload and parse resume PDF (runs MCP pipeline → stores to Cloudinary + MongoDB)
+- `GET /api/resume` - Get resume metadata, parsed sections, and ATS score
+- `POST /api/resume/recalculate` - Re-score stored resume with latest ATS scorer (no re-upload)
+- `DELETE /api/resume` - Delete resume
+- `GET /api/resume/file` - Open resume PDF file
 
 #### Jobs
 - `GET /api/jobs` - List jobs
@@ -421,6 +457,16 @@ python -m server
 8. **Memory** stores interaction
 9. **Response** returned to user
 
+### Resume Analysis Workflow
+1. **User** uploads resume PDF or DOCX via frontend
+2. **Backend** base64-encodes the file and calls Resume MCP `parse_resume`
+3. **pdf_loader** extracts raw text (PyMuPDF primary, pdfplumber fallback)
+4. **section_splitter** detects and separates resume sections (experience, projects, skills, education, etc.)
+5. **entity_extractor** pulls skills, roles, companies, seniority, and experience duration
+6. **ats_scorer** auto-detects candidate profile (student / early-career / professional) and scores 0–100
+7. **llm_scorer** (optional) calls Groq for strengths, improvements, and critical feedback
+8. **Score breakdown and flags** returned to frontend
+
 ---
 
 ## 📊 MCP (Model Context Protocol)
@@ -437,7 +483,7 @@ Each MCP server exposes tools and resources:
 - **Calendar**: create_event, update_event, list_events, extract_from_email
 - **Gmail**: list_emails, read_email, send_email, draft_email
 - **Job Search**: search_jobs, get_job_details, track_applications
-- **Resume**: parse_resume, extract_skills, match_with_jobs
+- **Resume**: parse_resume, ats_score, ping
 
 ### Securing MCP Connections
 - Use environment variables for credentials
@@ -468,6 +514,10 @@ pytest --cov=client            # With coverage report
 ```bash
 cd mcp_servers/calendar_mcp
 python manual_test.py
+
+cd mcp_servers/resume_mcp
+# Health check
+curl http://127.0.0.1:8001/mcp/ping
 ```
 
 ---
@@ -475,7 +525,7 @@ python manual_test.py
 ## 📝 Environment Configuration
 
 ### Root Level
-- `.env` - Shared configuration (Redis, MongoDB)
+- `.env` - Shared configuration (Redis, MongoDB, GROQ_API_KEY)
 
 ### Backend (`backend/.env`)
 - Database connections
@@ -513,25 +563,25 @@ python manual_test.py
 ## 🤝 Contributing
 
 1. Clone the repository
-   ```bash
+```bash
    git clone https://github.com/Sid-MNNIT/MCP.git
    cd MCP
-   ```
+```
 
 2. Create a feature branch
-   ```bash
+```bash
    git checkout -b feature/your-feature-name
-   ```
+```
 
 3. Make your changes and commit
-   ```bash
+```bash
    git commit -m "Add your feature description"
-   ```
+```
 
 4. Push to your fork and create a Pull Request
-   ```bash
+```bash
    git push origin feature/your-feature-name
-   ```
+```
 
 ### Code Standards
 - Backend: JavaScript ES6+, consistent with Express.js conventions
@@ -565,6 +615,13 @@ Detailed documentation available in the `docs/` directory:
 - **Import errors**: Ensure virtual environment is activated
 - **LLM API errors**: Verify API keys and rate limits in Groq/OpenAI dashboards
 - **Redis connection**: Check Redis server is running on configured port
+
+### Resume MCP Issues
+- **GROQ_API_KEY not set**: Ensure `GROQ_API_KEY` is present in the root `.env` file
+- **SCANNED_PDF error**: Upload a text-based PDF or DOCX — image-only PDFs have no extractable text
+- **INVALID_BASE64 error**: Strip the `data:` URL prefix before base64 encoding the file
+- **Low ATS score for students**: Ensure the resume has an education section with GPA/CGPA and a projects section
+- **Groq rate limit errors**: Happens with `use_llm=true`; retried automatically up to 3 times
 
 ---
 
