@@ -616,13 +616,6 @@ Detailed documentation available in the `docs/` directory:
 - **LLM API errors**: Verify API keys and rate limits in Groq/OpenAI dashboards
 - **Redis connection**: Check Redis server is running on configured port
 
-### Resume MCP Issues
-- **GROQ_API_KEY not set**: Ensure `GROQ_API_KEY` is present in the root `.env` file
-- **SCANNED_PDF error**: Upload a text-based PDF or DOCX — image-only PDFs have no extractable text
-- **INVALID_BASE64 error**: Strip the `data:` URL prefix before base64 encoding the file
-- **Low ATS score for students**: Ensure the resume has an education section with GPA/CGPA and a projects section
-- **Groq rate limit errors**: Happens with `use_llm=true`; retried automatically up to 3 times
-
 ---
 
 ## 📄 License
