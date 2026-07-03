@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  getCurrentUser,
   startGmailSync,
   getGmailStatus,
   getEmailStats,
@@ -8,6 +7,8 @@ import {
   getCalendarAuthUrl,
   getCalendarConnectionStatus,
 } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
+import { getCached, setCached } from "../utils/cache";
 
 import "../styles/dashboard.css";
 
@@ -20,78 +21,122 @@ import RecruiterActivity from "../components/dashboard/RecruiterActivity";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import CalendarWidget from "../components/dashboard/CalendarWidget";
 
-export default function Dashboard() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Cache keys — kept together so they're easy to invalidate elsewhere.
+const K_GMAIL = "dashboard:gmail";
+const K_STATS = "dashboard:emailStats";
+const K_CAL = "dashboard:calendar";
+const K_RESUME = "dashboard:resume";
 
-  const [gmail, setGmail] = useState({
+// Initial state factories read from the cache synchronously.
+// If a cached value exists, we render with it and skip the "Checking…" flash.
+const initGmail = () =>
+  getCached(K_GMAIL) || {
+    loading: true,
     isConnected: false,
     email: null,
     timestamp: "Not connected",
-  });
+  };
 
-  const [emailStats, setEmailStats] = useState({
+const initStats = () =>
+  getCached(K_STATS) || {
+    loading: true,
     interviews: 0,
     rejections: 0,
     assessments: 0,
-  });
+  };
 
-  const [calendar, setCalendar] = useState({
+const initCal = () =>
+  getCached(K_CAL) || {
+    loading: true,
     isConnected: false,
     calendarEmail: null,
-  });
+  };
 
-  const [resumeData, setResumeData] = useState(null);
+export default function Dashboard() {
+  // User comes from global auth context — no re-fetch on navigation.
+  const { user } = useAuth();
+
+  const [gmail, setGmail] = useState(initGmail);
+  const [emailStats, setEmailStats] = useState(initStats);
+  const [calendar, setCalendar] = useState(initCal);
+  const [resumeData, setResumeData] = useState(() => getCached(K_RESUME) || null);
+  const [resumeLoading, setResumeLoading] = useState(
+    () => getCached(K_RESUME) == null
+  );
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadDashboard = async () => {
-      try {
-        const [userRes, gmailRes, statsRes, calRes, resumeRes] =
-          await Promise.all([
-            getCurrentUser(),
-            getGmailStatus(),
-            getEmailStats(),
-            getCalendarConnectionStatus(),
-            getMyResume(),
-          ]);
-
+    // Every source refreshes in parallel in the background.
+    // The UI already shows cached values (if any); results just flow in.
+    getGmailStatus()
+      .then((r) => {
         if (!isMounted) return;
-
-        setUser(userRes?.user || null);
-        setEmailStats(statsRes || { interviews: 0, rejections: 0, assessments: 0 });
-
-        setCalendar(
-          calRes || { isConnected: false, calendarEmail: null }
-        );
-
-        setResumeData(resumeRes || null);
-
-        setGmail({
-          isConnected: gmailRes?.connected || false,
-          email: gmailRes?.gmailEmail || null,
-          timestamp: gmailRes?.connected
-            ? `Synced ${new Date(gmailRes.lastSync).toLocaleString()}`
+        const next = {
+          loading: false,
+          isConnected: r?.connected || false,
+          email: r?.gmailEmail || null,
+          timestamp: r?.connected
+            ? `Synced ${new Date(r.lastSync).toLocaleString()}`
             : "Not connected",
-        });
+        };
+        setCached(K_GMAIL, next);
+        setGmail(next);
+      })
+      .catch(() => isMounted && setGmail((s) => ({ ...s, loading: false })));
 
-        // Clean OAuth redirect params
-        const params = new URLSearchParams(window.location.search);
-        if (
-          params.get("calendar_connected") === "true" ||
-          params.get("calendar_error") === "true"
-        ) {
-          window.history.replaceState({}, "", "/dashboard");
-        }
-      } catch (err) {
-        console.error("Dashboard load error:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+    getEmailStats()
+      .then((r) => {
+        if (!isMounted) return;
+        const next = {
+          loading: false,
+          interviews: r?.interviews ?? 0,
+          rejections: r?.rejections ?? 0,
+          assessments: r?.assessments ?? 0,
+        };
+        setCached(K_STATS, next);
+        setEmailStats(next);
+      })
+      .catch(() =>
+        isMounted && setEmailStats((s) => ({ ...s, loading: false }))
+      );
 
-    loadDashboard();
+    getCalendarConnectionStatus()
+      .then((r) => {
+        if (!isMounted) return;
+        const next = {
+          loading: false,
+          isConnected: r?.isConnected || false,
+          calendarEmail: r?.calendarEmail || null,
+        };
+        setCached(K_CAL, next);
+        setCalendar(next);
+      })
+      .catch(() =>
+        isMounted && setCalendar((s) => ({ ...s, loading: false }))
+      );
+
+    getMyResume()
+      .then((r) => {
+        if (!isMounted) return;
+        setCached(K_RESUME, r || null);
+        setResumeData(r || null);
+        setResumeLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setResumeData(null);
+        setResumeLoading(false);
+      });
+
+    // Clean OAuth redirect params
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get("calendar_connected") === "true" ||
+      params.get("calendar_error") === "true"
+    ) {
+      window.history.replaceState({}, "", "/dashboard");
+    }
 
     return () => {
       isMounted = false;
@@ -106,10 +151,6 @@ export default function Dashboard() {
     ? `Updated ${new Date(resume.uploadedAt).toLocaleString()}`
     : "No resume found";
 
-  if (loading) {
-    return <div className="dashboard-loading">Loading dashboard...</div>;
-  }
-
   return (
     <div className="dashboard-shell">
       <Sidebar />
@@ -122,25 +163,45 @@ export default function Dashboard() {
           <StatusCard
             type="resume"
             title="Resume"
-            statusText={hasResume ? "Parsed & Ready" : "Not Uploaded"}
-            lastUpdated={resumeTimestamp}
-            state={hasResume ? "success" : "error"}
+            statusText={
+              resumeLoading
+                ? "Checking…"
+                : hasResume
+                ? "Parsed & Ready"
+                : "Not Uploaded"
+            }
+            lastUpdated={resumeLoading ? "Loading…" : resumeTimestamp}
+            state={resumeLoading ? "success" : hasResume ? "success" : "error"}
           />
 
           <StatusCard
             type="calendar"
             title="Google Calendar"
-            statusText={calendar.isConnected ? "Connected" : "Not Connected"}
+            statusText={
+              calendar.loading
+                ? "Checking…"
+                : calendar.isConnected
+                ? "Connected"
+                : "Not Connected"
+            }
             lastUpdated={
-              calendar.isConnected
+              calendar.loading
+                ? "Loading…"
+                : calendar.isConnected
                 ? calendar.calendarEmail
                   ? `Connected as ${calendar.calendarEmail}`
                   : "Calendar syncing active"
                 : "No calendar connected"
             }
-            state={calendar.isConnected ? "success" : "error"}
+            state={
+              calendar.loading
+                ? "success"
+                : calendar.isConnected
+                ? "success"
+                : "error"
+            }
             onClick={
-              !calendar.isConnected
+              !calendar.loading && !calendar.isConnected
                 ? async () => {
                     const url = await getCalendarAuthUrl();
                     window.location.href = url;
@@ -152,14 +213,30 @@ export default function Dashboard() {
           <StatusCard
             type="gmail"
             title="Gmail"
-            statusText={gmail.isConnected ? "Connected" : "Not Connected"}
+            statusText={
+              gmail.loading
+                ? "Checking…"
+                : gmail.isConnected
+                ? "Connected"
+                : "Not Connected"
+            }
             lastUpdated={
-              gmail.isConnected && gmail.email
+              gmail.loading
+                ? "Loading…"
+                : gmail.isConnected && gmail.email
                 ? `Connected as ${gmail.email}`
                 : gmail.timestamp
             }
-            state={gmail.isConnected ? "success" : "error"}
-            onClick={!gmail.isConnected ? startGmailSync : undefined}
+            state={
+              gmail.loading
+                ? "success"
+                : gmail.isConnected
+                ? "success"
+                : "error"
+            }
+            onClick={
+              !gmail.loading && !gmail.isConnected ? startGmailSync : undefined
+            }
           />
         </div>
 
